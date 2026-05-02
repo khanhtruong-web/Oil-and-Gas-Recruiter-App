@@ -24,6 +24,7 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
     const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
 
     const filtered = candidates.filter(cv => {
+        if (cv.currentStatus === 'Deleted') return false;
         const yrs = cv.yearsExp || 0;
         if (discipline !== 'All' && cv.discipline !== discipline) return false;
         if (minExp && yrs < parseInt(minExp)) return false;

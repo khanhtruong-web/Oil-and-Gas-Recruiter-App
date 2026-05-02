@@ -82,19 +82,92 @@ class GeminiService {
     }
   }
 
-  async analyzeCV(text: string, mode: 'spellcheck' | 'review' | 'suggest'): Promise<string> {
+  async mapCVToTemplate(rawText: string, vars: string[]): Promise<any> {
     if (!this.ai) this.initClient();
+    if (!this.ai) throw new Error("API Key logic failed: Gemini API key is required.");
+
+    const schemaProperties: any = {};
+    const required: string[] = [];
     
-    const prompts = {
-      spellcheck: "Proofread this CV bio for grammar and spelling. Return standard English corrections.",
-      review: "Review this CV for technical depth in Oil & Gas. Provide Strengths, Weaknesses, and Roles.",
-      suggest: "Suggest specific content improvements to make this CV more professional for offshore bidding."
-    };
+    vars.forEach(v => {
+      schemaProperties[v] = { type: Type.STRING };
+      required.push(v);
+    });
 
     try {
       const response = await this.ai.models.generateContent({
         model: this.modelName,
-        contents: `${prompts[mode]}\n\nCV TEXT:\n${text}`
+        contents: `Extract detailed information from the CV text to fill these specific template variables: ${vars.join(', ')}. 
+For any table or list data expected, format it properly as text. If info is missing, output 'N/A'.
+CV TEXT:
+${rawText.substring(0, 30000)}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: schemaProperties,
+            required
+          },
+          temperature: 0.1
+        }
+      });
+
+      return JSON.parse(response.text || "{}");
+    } catch (error) {
+      console.error("Gemini Map Template Error:", error);
+      throw error;
+    }
+  }
+
+  async analyzeCV(text: string, mode: 'spellcheck' | 'review' | 'suggest', jobDescription?: string, allCandidates?: Candidate[]): Promise<string> {
+    if (!this.ai) this.initClient();
+    
+    let prompt = "";
+    let contents = "";
+
+    if (mode === 'suggest' && allCandidates && jobDescription) {
+      prompt = `Act as an expert technical recruiter matching CVs against a Job Description.
+Please find the best matching candidates for the following Job Description out of the provided list of candidates. 
+For each top candidate, explain why they are a good fit, their scores against the JD, and explicitly list matching and missing certificates.
+
+JOB DESCRIPTION:
+${jobDescription.substring(0, 10000)}
+
+CANDIDATES DATA (summarized):
+`;
+      const candidatesData = allCandidates.map(c => `ID: ${c.id}\nName: ${c.candidateName}\nDiscipline: ${c.discipline}\nExperience: ${c.yearsExp} years\nKey Skills: ${c.keySkills || 'N/A'}\nCertifications: ${c.certifications || 'N/A'}\nProfessional Summary: ${c.professionalSummary || 'N/A'}\n---`).join('\n');
+      contents = prompt + candidatesData.substring(0, 20000);
+    } else {
+      if (mode === 'spellcheck') {
+        prompt = "Proofread this CV bio for grammar and spelling. Return standard English corrections.";
+      } else if (mode === 'review') {
+        if (jobDescription) {
+          prompt = `Review this CV deeply against the following Job Description. 
+1. Provide Strengths and Weaknesses relative to the JD.
+2. Provide a Suitability Score (0-100%).
+3. Deeply analyze and compare their Certificates vs the JD requirements. Explicitly filter and list "Matching Certificates" and "Missing Certificates".
+
+JOB DESCRIPTION:
+${jobDescription.substring(0, 10000)}
+`;
+        } else {
+          prompt = `Review this CV for technical depth in Oil & Gas. 
+1. Provide Strengths and Weaknesses.
+2. Provide a Suitability Score.
+3. Explicitly list and filter information related to their Certificates.`;
+        }
+      } else if (mode === 'suggest') {
+        prompt = jobDescription 
+          ? `Suggest specific content improvements to make this CV more professional and a better fit for the following Job Description.\n\nJOB DESCRIPTION:\n${jobDescription.substring(0, 10000)}`
+          : "Suggest specific content improvements to make this CV more professional for offshore bidding.";
+      }
+      contents = `${prompt}\n\nCV TEXT:\n${text}`;
+    }
+
+    try {
+      const response = await this.ai.models.generateContent({
+        model: this.modelName,
+        contents: contents
       });
       return response.text || "Analysis failed.";
     } catch (error) {

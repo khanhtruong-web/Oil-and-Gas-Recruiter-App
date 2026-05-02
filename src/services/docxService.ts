@@ -4,7 +4,32 @@ import { Candidate } from '../types';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 
-export const fillTemplate = async (candidate: Candidate, templateBase64: string, templateName: string) => {
+export const getTemplateVariables = (templateBase64: string): string[] => {
+    try {
+        const binaryString = atob(templateBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        const zip = new PizZip(bytes.buffer);
+        const docXml = zip.files['word/document.xml'];
+        if (!docXml) return [];
+        const xmlText = docXml.asText();
+        // Remove all XML tags to get raw text
+        const plainText = xmlText.replace(/<[^>]+>/g, '');
+        // Match {VARIABLE_NAME}
+        const matches = plainText.match(/\{[A-Za-z0-9_]+\}/g);
+        if (!matches) return [];
+        // Extract inner values and dedupe
+        const vars = Array.from(new Set(matches.map(m => m.replace(/[\{\}]/g, ''))));
+        return vars;
+    } catch (error) {
+        console.error("Failed to parse template variables:", error);
+        return [];
+    }
+};
+
+export const fillTemplate = async (mappedData: any, templateBase64: string, templateName: string) => {
   try {
     const binaryString = atob(templateBase64);
     const bytes = new Uint8Array(binaryString.length);
@@ -18,19 +43,7 @@ export const fillTemplate = async (candidate: Candidate, templateBase64: string,
     });
 
     // Map candidate data to template variables
-    doc.setData({
-        CANDIDATE_NAME: candidate.candidateName || '',
-        EMAIL: candidate.email || '',
-        PHONE: candidate.phone || '',
-        YEARS_EXP: candidate.yearsExp || 0,
-        EDUCATION: candidate.education || '',
-        DISCIPLINE: candidate.discipline || '',
-        SPECIALIZED_FIELD: candidate.specializedField || '',
-        WORK_FIELDS: candidate.workFields || '',
-        AI_SUMMARY: candidate.aiSummary || '',
-        AI_SCORE: candidate.aiScore || 0,
-        PROFESSIONAL_SUMMARY: candidate.professionalSummary || '',
-    });
+    doc.setData(mappedData);
 
     try {
         doc.render();
@@ -44,7 +57,7 @@ export const fillTemplate = async (candidate: Candidate, templateBase64: string,
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
 
-    const safeName = (candidate.candidateName || 'Unknown').replace(/\W+/g, '_');
+    const safeName = (mappedData.CANDIDATE_NAME || mappedData.candidateName || 'Candidate').replace(/\W+/g, '_');
     saveAs(out, `CV_${safeName}_${templateName.replace(/\s+/g, '_')}.docx`);
   } catch (error) {
     console.error("Error filling template:", error);
@@ -121,11 +134,55 @@ export const exportToWord = async (candidate: Candidate, templateName: string = 
   );
   children.push(...summaryParagraphs);
 
+  // Key Skills
+  if (candidate.keySkills) {
+    children.push(new Paragraph({ spacing: { after: 300 } }));
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: '3. KEY SKILLS', bold: true, size: 24, color: '334155' })],
+        spacing: { after: 100 },
+        border: { bottom: { color: 'cbd5e1', space: 2, style: BorderStyle.SINGLE, size: 2 } }
+      })
+    );
+    const skillsParagraphs = candidate.keySkills.split('\n').filter(l => l.trim()).map(line => 
+      new Paragraph({ children: [new TextRun({ text: line.trim() })], spacing: { after: 100 } })
+    );
+    children.push(...skillsParagraphs);
+  }
+
+  // Education & Certifications
+  if (candidate.education || candidate.certifications) {
+    children.push(new Paragraph({ spacing: { after: 300 } }));
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: '4. EDUCATION & CERTIFICATIONS', bold: true, size: 24, color: '334155' })],
+        spacing: { after: 100 },
+        border: { bottom: { color: 'cbd5e1', space: 2, style: BorderStyle.SINGLE, size: 2 } }
+      })
+    );
+
+    if (candidate.education) {
+      children.push(new Paragraph({ children: [new TextRun({ text: 'Education:', bold: true })], spacing: { after: 50, before: 100 } }));
+      const eduParagraphs = candidate.education.split('\n').filter(l => l.trim()).map(line => 
+        new Paragraph({ children: [new TextRun({ text: line.trim() })], spacing: { after: 100 } })
+      );
+      children.push(...eduParagraphs);
+    }
+
+    if (candidate.certifications) {
+      children.push(new Paragraph({ children: [new TextRun({ text: 'Certifications:', bold: true })], spacing: { after: 50, before: 100 } }));
+      const certParagraphs = candidate.certifications.split('\n').filter(l => l.trim()).map(line => 
+        new Paragraph({ children: [new TextRun({ text: line.trim() })], spacing: { after: 100 } })
+      );
+      children.push(...certParagraphs);
+    }
+  }
+
   // Key Competencies
   children.push(new Paragraph({ spacing: { after: 300 } }));
   children.push(
     new Paragraph({
-      children: [new TextRun({ text: '3. KEY COMPETENCIES & AI EVALUATION', bold: true, size: 24, color: '334155' })],
+      children: [new TextRun({ text: '5. AI EVALUATION & NOTES', bold: true, size: 24, color: '334155' })],
       spacing: { after: 100 },
       border: { bottom: { color: 'cbd5e1', space: 2, style: BorderStyle.SINGLE, size: 2 } }
     })

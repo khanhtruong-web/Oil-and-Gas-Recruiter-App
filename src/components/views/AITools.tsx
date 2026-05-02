@@ -6,21 +6,31 @@ import { Candidate } from '../../types';
 import { geminiService } from '../../services/geminiService';
 import { toast } from 'sonner';
 import { Loader2, Bot, CheckCircle2, Award, TrendingUp } from 'lucide-react';
+import Markdown from 'react-markdown';
 
 export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
     const [selectedId, setSelectedId] = useState<string>('');
+    const [jobDescription, setJobDescription] = useState<string>('');
     const [activeTool, setActiveTool] = useState<'spellcheck' | 'review' | 'suggest'>('spellcheck');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<string>('');
 
     const runAnalysis = async () => {
-        if (!selectedId) return toast.error('Please select a CV first');
-        const cv = candidates.find(c => c.id === selectedId);
-        if (!cv?.rawText) return toast.error('No CV text available for this candidate');
+        let cv = null;
+        
+        if (activeTool !== 'suggest' || (activeTool === 'suggest' && !jobDescription)) {
+            if (!selectedId) return toast.error('Please select a CV first');
+            cv = candidates.find(c => c.id === selectedId);
+            if (!cv?.rawText) return toast.error('No CV text available for this candidate');
+        }
+
+        if (activeTool === 'suggest' && jobDescription && candidates.length === 0) {
+            return toast.error('No candidates available to match against');
+        }
         
         setLoading(true);
         try {
-            const res = await geminiService.analyzeCV(cv.rawText, activeTool);
+            const res = await geminiService.analyzeCV(cv?.rawText || "", activeTool, jobDescription, candidates);
             setResult(res);
         } catch (e) {
             toast.error('AI Analysis failed');
@@ -31,8 +41,8 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
 
     const tools = [
         { id: 'spellcheck', label: 'Spellcheck', desc: 'AI-powered English grammar & spelling review', icon: CheckCircle2, bg: 'from-blue-500 to-blue-600' },
-        { id: 'review', label: 'AI Review', desc: 'Strengths, weaknesses & suitability score', icon: Award, bg: 'from-indigo-500 to-indigo-600' },
-        { id: 'suggest', label: 'Suggestions', desc: 'AI-generated CV improvement tips', icon: TrendingUp, bg: 'from-emerald-500 to-emerald-600' },
+        { id: 'review', label: 'AI Review', desc: 'Strengths, weaknesses, certs & JD matching', icon: Award, bg: 'from-indigo-500 to-indigo-600' },
+        { id: 'suggest', label: 'Candidate Suggestions', desc: 'Find best CVs for a Job Description', icon: TrendingUp, bg: 'from-emerald-500 to-emerald-600' },
     ];
 
     return (
@@ -66,21 +76,75 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <div className="space-y-2 relative">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Job Description (Optional for deeper matching)</label>
+                        <textarea 
+                            className="text-sm border border-slate-200 bg-slate-50/50 min-h-[100px] w-full p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
+                            placeholder="Paste the Job Description here to match candidates' skills, certifications, and experience against the requirements. Or click the upload icon."
+                            value={jobDescription} 
+                            onChange={(e) => setJobDescription(e.target.value)} 
+                        />
+                        <input 
+                            type="file" 
+                            accept=".pdf,.docx,.doc,.txt" 
+                            id="jd-upload" 
+                            className="hidden" 
+                            onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                    setLoading(true);
+                                    let text = '';
+                                    if (file.name.endsWith('.pdf')) {
+                                        const { extractTextFromPdf } = await import('../../services/pdfService');
+                                        text = await extractTextFromPdf(file);
+                                    } else if (file.name.endsWith('.docx')) {
+                                        const { extractTextFromDocx } = await import('../../services/docxParserService');
+                                        text = await extractTextFromDocx(file);
+                                    } else if (file.name.endsWith('.doc')) {
+                                        const { extractTextFromDoc } = await import('../../services/docxParserService');
+                                        text = await extractTextFromDoc(file);
+                                    } else if (file.name.endsWith('.txt')) {
+                                        text = await file.text();
+                                    } else {
+                                        toast.error("Unsupported file format.");
+                                        return;
+                                    }
+                                    setJobDescription(text);
+                                    toast.success("Job Description loaded.");
+                                } catch (err) {
+                                    toast.error("Failed to read the file.");
+                                } finally {
+                                    setLoading(false);
+                                }
+                            }}
+                        />
+                        <button 
+                            className="absolute bottom-4 right-4 bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-primary transition-all cursor-pointer"
+                            onClick={() => document.getElementById('jd-upload')?.click()}
+                            title="Upload Job Description File"
+                            type="button"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-upload"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                        </button>
+                    </div>
                     <div className="flex flex-col md:flex-row gap-4">
-                        <Select value={selectedId} onValueChange={setSelectedId}>
-                            <SelectTrigger className="flex-1 h-12 bg-slate-50 border-slate-200 font-medium">
-                                <SelectValue placeholder="— Select a candidate's CV —" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[300px]">
-                                {candidates.map(c => (
-                                    <SelectItem key={c.id} value={c.id!}>{c.candidateName} - {c.discipline}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        {!(activeTool === 'suggest' && jobDescription) && (
+                            <Select value={selectedId} onValueChange={setSelectedId}>
+                                <SelectTrigger className="flex-1 h-12 bg-slate-50 border-slate-200 font-medium">
+                                    <SelectValue placeholder="— Select a candidate's CV —" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[300px]">
+                                    {candidates.map(c => (
+                                        <SelectItem key={c.id} value={c.id!}>{c.candidateName} - {c.discipline}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
                         <Button 
                             className="h-12 px-8 font-black tracking-widest uppercase text-[11px]" 
                             onClick={runAnalysis}
-                            disabled={loading || !selectedId}
+                            disabled={loading || (!(activeTool === 'suggest' && jobDescription) && !selectedId)}
                         >
                             {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Bot className="w-4 h-4 mr-2" />}
                             Run {tools.find(t => t.id === activeTool)?.label}
@@ -94,8 +158,8 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
                                 <p className="font-bold text-xs uppercase tracking-widest">Scanning Document...</p>
                             </div>
                         ) : result ? (
-                            <div className="whitespace-pre-wrap font-medium text-slate-700 text-sm leading-relaxed p-4 bg-white rounded-lg shadow-sm border border-slate-100">
-                                {result}
+                            <div className="prose prose-sm prose-slate max-w-none prose-p:leading-relaxed prose-headings:font-black bg-white rounded-lg shadow-sm border border-slate-100 p-6">
+                                <Markdown>{result}</Markdown>
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center h-full pt-16 text-slate-300 italic">

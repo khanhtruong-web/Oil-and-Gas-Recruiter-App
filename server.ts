@@ -15,6 +15,42 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  app.get(['/auth/callback', '/auth/callback/'], (req, res) => {
+    res.send(`
+      <html>
+        <body>
+          <script>
+            // Parse token from hash (implicit flow) or query params
+            let token = null;
+            let expiresIn = null;
+            let err = null;
+            
+            if (window.location.hash) {
+                const params = new URLSearchParams(window.location.hash.substring(1));
+                token = params.get('access_token');
+                expiresIn = params.get('expires_in');
+                err = params.get('error');
+            } else if (window.location.search) {
+                const params = new URLSearchParams(window.location.search);
+                err = params.get('error');
+            }
+
+            if (window.opener) {
+              if (token) {
+                window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token, expiresIn }, '*');
+              } else {
+                window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: err || 'No token provided' }, '*');
+              }
+              window.close();
+            } else {
+              document.body.innerHTML = 'Authentication completed. You can close this window now.';
+            }
+          </script>
+        </body>
+      </html>
+    `);
+  });
+
   // ---- API GATEWAY / CORE SERVICES LAYER ----
 
   // proxy to Google APIs to avoid direct client calls

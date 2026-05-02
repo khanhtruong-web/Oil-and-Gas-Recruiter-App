@@ -3,29 +3,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Candidate, CompanyTemplate } from '../../types';
-import { exportToWord, fillTemplate } from '../../services/docxService';
+import { exportToWord, fillTemplate, getTemplateVariables } from '../../services/docxService';
+import { geminiService } from '../../services/geminiService';
 import { toast } from 'sonner';
-import { Building2, FileText, Download, Eye, Columns, Upload, Trash2, Plus, Info, LayoutTemplate, CheckCircle2 } from 'lucide-react';
+import { Building2, FileText, Download, Eye, Columns, Upload, Trash2, Plus, Info, LayoutTemplate, CheckCircle2, Save, Wand2 } from 'lucide-react';
 import { useAuth } from '../AuthProvider';
 import { db } from '../../lib/firebase';
-import { collection, onSnapshot, query, where, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../../lib/firestore-error';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const PRESET_TEMPLATES: CompanyTemplate[] = [
     { id: 'petrobras', name: 'Petrobras', color: '#00AEEF', accent: '#005f8a', logo: '🏭', country: 'Brazil' },
     { id: 'shell', name: 'Shell', color: '#FFD700', accent: '#c5a600', logo: '🐚', country: 'Netherlands' },
     { id: 'exxon', name: 'ExxonMobil', color: '#FF0000', accent: '#b30000', logo: '⚡', country: 'USA' },
     { id: 'bp', name: 'BP', color: '#00A651', accent: '#007a3d', logo: '🌿', country: 'UK' },
-    { id: 'chevron', name: 'Chevron', color: '#FF8C00', accent: '#cc7000', logo: '🔥', country: 'USA' }
+    { id: 'chevron', name: 'Chevron', color: '#FF8C00', accent: '#cc7000', logo: '🔥', country: 'USA' },
+    { id: 'standard', name: 'Standard Format', color: '#64748b', accent: '#475569', logo: '📄', country: 'Global' }
 ];
 
 export const CompanyTemplates = ({ candidates }: { candidates: Candidate[] }) => {
     const { user } = useAuth();
-    const [selectedTemplate, setSelectedTemplate] = useState<CompanyTemplate>(PRESET_TEMPLATES[0]);
+    const [selectedTemplate, setSelectedTemplate] = useState<CompanyTemplate>(PRESET_TEMPLATES[5]);
     const [customTemplates, setCustomTemplates] = useState<CompanyTemplate[]>([]);
     const [selectedCandidateId, setSelectedCandidateId] = useState<string>('');
     const [showPreview, setShowPreview] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [processingAI, setProcessingAI] = useState(false);
+    const [mappedData, setMappedData] = useState<Record<string, any>>({});
+    const [editingCandidate, setEditingCandidate] = useState<Partial<Candidate>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Fetch custom templates
@@ -40,6 +47,67 @@ export const CompanyTemplates = ({ candidates }: { candidates: Candidate[] }) =>
         });
         return () => unsub();
     }, [user]);
+
+    useEffect(() => {
+        if (selectedCandidateId) {
+            const c = candidates.find(can => can.id === selectedCandidateId);
+            if (c) {
+                setEditingCandidate(c);
+                if (selectedTemplate.isCustom && selectedTemplate.fileBase64) {
+                    const vars = getTemplateVariables(selectedTemplate.fileBase64);
+                    const initData: any = {};
+                    vars.forEach(v => {
+                        // try to match with standard fields first
+                        if(v === 'CANDIDATE_NAME') initData[v] = c.candidateName;
+                        else if(v === 'EMAIL') initData[v] = c.email;
+                        else if(v === 'PHONE') initData[v] = c.phone;
+                        else if(v === 'YEARS_EXP') initData[v] = c.yearsExp;
+                        else initData[v] = '';
+                    });
+                    setMappedData(initData);
+                } else {
+                    setMappedData({});
+                }
+            }
+        }
+    }, [selectedCandidateId, selectedTemplate, candidates]);
+
+    const runAIExtraction = async () => {
+        if (!selectedCandidateId || !selectedTemplate.isCustom || !selectedTemplate.fileBase64) return;
+        const cv = candidates.find(c => c.id === selectedCandidateId);
+        if (!cv?.rawText) return toast.error('No raw text available for this candidate.');
+        
+        const vars = getTemplateVariables(selectedTemplate.fileBase64);
+        if (vars.length === 0) return toast.warning('No variables found in template to extract.');
+
+        setProcessingAI(true);
+        try {
+            toast.loading('AI is analyzing structural template fields...', { id: 'ai-map' });
+            const result = await geminiService.mapCVToTemplate(cv.rawText, vars);
+            setMappedData(result);
+            setShowPreview(true);
+            toast.success('AI Data Mapping Complete', { id: 'ai-map' });
+        } catch (error) {
+            console.error(error);
+            toast.error('AI Extraction failed.', { id: 'ai-map' });
+        } finally {
+            setProcessingAI(false);
+        }
+    };
+
+    const saveCandidateChanges = async () => {
+        if (!selectedCandidateId) return;
+        try {
+            toast.loading('Saving candidate information...', { id: 'save-cand' });
+            await updateDoc(doc(db, 'candidates', selectedCandidateId), {
+                ...editingCandidate,
+                updatedAt: serverTimestamp()
+            });
+            toast.success('Cross-platform sync complete', { id: 'save-cand' });
+        } catch (error: any) {
+             handleFirestoreError(error, OperationType.UPDATE, `candidates/${selectedCandidateId}`);
+        }
+    };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -100,13 +168,14 @@ export const CompanyTemplates = ({ candidates }: { candidates: Candidate[] }) =>
         if (!cv) return toast.error('CV not found');
         
         if (selectedTemplate.isCustom && selectedTemplate.fileBase64) {
-            toast.promise(fillTemplate(cv, selectedTemplate.fileBase64, selectedTemplate.name), {
+            toast.promise(fillTemplate(mappedData, selectedTemplate.fileBase64, selectedTemplate.name), {
                 loading: 'Applying template...',
                 success: 'CV Exported successfully',
                 error: 'Failed to fill template. Check variable names.'
             });
         } else {
-            exportToWord(cv, selectedTemplate.name);
+            // First save what's in `editingCandidate` so it's consistent
+            exportToWord(editingCandidate as Candidate, selectedTemplate.name);
             toast.success(`Exporting CV using ${selectedTemplate.name} template...`);
         }
     };
@@ -191,13 +260,13 @@ export const CompanyTemplates = ({ candidates }: { candidates: Candidate[] }) =>
                         <div className="flex-1 w-full">
                             <Select value={selectedCandidateId} onValueChange={setSelectedCandidateId}>
                                 <SelectTrigger className="h-12 bg-white border-slate-200 rounded-xl shadow-sm focus:ring-primary/20">
-                                    <SelectValue placeholder="— Select a Confirmed Candidate —" />
+                                    <SelectValue placeholder="— Select a CV/Expert —" />
                                 </SelectTrigger>
                                 <SelectContent className="max-h-[300px] rounded-xl shadow-xl">
-                                    {candidates.filter(c => c.confirmed).length === 0 && (
-                                        <div className="p-4 text-center text-xs text-slate-400">No confirmed candidates found. Please review and confirm in CV Extraction.</div>
+                                    {candidates.length === 0 && (
+                                        <div className="p-4 text-center text-xs text-slate-400">No candidates found in the system.</div>
                                     )}
-                                    {candidates.filter(c => c.confirmed).map(c => (
+                                    {candidates.map(c => (
                                         <SelectItem key={c.id} value={c.id!} className="rounded-lg">
                                             <div className="flex flex-col py-1">
                                                 <span className="font-bold text-slate-800">{c.candidateName}</span>
@@ -209,21 +278,33 @@ export const CompanyTemplates = ({ candidates }: { candidates: Candidate[] }) =>
                             </Select>
                         </div>
                         
-                        <div className="flex items-center gap-3 w-full md:w-auto">
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            {selectedTemplate.isCustom && (
+                                <Button 
+                                    variant="outline" 
+                                    className="h-12 px-4 font-bold rounded-xl border-slate-200 bg-amber-50 text-amber-700 hover:bg-amber-100" 
+                                    onClick={runAIExtraction}
+                                    disabled={processingAI || !selectedCandidateId}
+                                >
+                                    <Wand2 className={`w-4 h-4 mr-2 ${processingAI ? 'animate-spin' : ''}`} />
+                                    AI Map Formats
+                                </Button>
+                            )}
+
                             <Button 
                                 variant="outline" 
-                                className="h-12 px-6 font-bold rounded-xl border-slate-200 flex-1 md:flex-none" 
+                                className="h-12 px-4 font-bold rounded-xl border-slate-200 flex-1 md:flex-none" 
                                 onClick={() => {
                                     if(!selectedCandidateId) return toast.error('Select a CV first');
                                     setShowPreview(!showPreview);
                                 }}
                             >
                                 <Eye className="w-4 h-4 mr-2" />
-                                Review Extracted Info
+                                {showPreview ? 'Hide Editor' : 'Edit & Review Info'}
                             </Button>
 
                             <Button 
-                                className="h-12 px-8 font-bold rounded-xl shadow-lg transition-transform active:scale-95 flex-1 md:flex-none" 
+                                className="h-12 px-6 font-bold rounded-xl shadow-lg transition-transform active:scale-95 flex-1 md:flex-none" 
                                 style={{ backgroundColor: selectedTemplate.color, color: selectedTemplate.id === 'shell' ? '#000' : '#fff' }}
                                 onClick={handleExport}
                             >
@@ -233,92 +314,135 @@ export const CompanyTemplates = ({ candidates }: { candidates: Candidate[] }) =>
                         </div>
                     </div>
 
-                    {selectedTemplate.isCustom && (
-                        <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-3">
-                            <Info className="w-5 h-5 text-amber-500 mt-0.5" />
-                            <div>
-                                <p className="text-xs font-bold text-amber-800">Template Variable Guide</p>
-                                <p className="text-[10px] text-amber-700 mt-1 leading-relaxed">
-                                    Your Word document should contain variables inside curly braces: 
-                                    <code className="mx-1 px-1 bg-amber-100 rounded">{"{CANDIDATE_NAME}"}</code>, 
-                                    <code className="mx-1 px-1 bg-amber-100 rounded">{"{EMAIL}"}</code>, 
-                                    <code className="mx-1 px-1 bg-amber-100 rounded">{"{PROFESSIONAL_SUMMARY}"}</code>, etc.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
                     {showPreview && selectedCandidateId && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8 mt-8 border-t border-slate-100 animate-in slide-in-from-top-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-8 mt-8 border-t border-slate-100 animate-in slide-in-from-top-4">
                             {/* Raw Data Box */}
-                            <div className="space-y-3">
+                            <div className="space-y-4">
                                 <h6 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
                                     <FileText className="w-3 h-3" /> Original Source Context
                                 </h6>
-                                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl h-[450px] overflow-y-auto text-[11px] text-slate-600 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
+                                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl h-[550px] overflow-y-auto text-[11px] text-slate-600 font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
                                     {candidates.find(c => c.id === selectedCandidateId)?.rawText || 'No text available'}
                                 </div>
                             </div>
 
-                            {/* Info Display Frame */}
-                            <div className="space-y-3">
-                                <h6 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2" style={{ color: selectedTemplate.color }}>
-                                    <Building2 className="w-3 h-3" /> Information Frame ({selectedTemplate.name})
-                                </h6>
-                                <div className="p-8 bg-white border border-slate-200 rounded-2xl h-[450px] overflow-y-auto shadow-sm relative overflow-hidden" 
+                            {/* Editable Mapping Display Frame */}
+                            <div className="space-y-4 flex flex-col h-[600px]">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h6 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2" style={{ color: selectedTemplate.color }}>
+                                        <Building2 className="w-3 h-3" /> Information Frame Editor ({selectedTemplate.name})
+                                    </h6>
+                                    {!selectedTemplate.isCustom && (
+                                        <Button size="sm" variant="outline" onClick={saveCandidateChanges} className="h-7 text-xs bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
+                                            <Save className="w-3 h-3 mr-1" /> Save to System
+                                        </Button>
+                                    )}
+                                </div>
+                                
+                                <div className="p-6 bg-white border border-slate-200 rounded-2xl flex-1 overflow-y-auto shadow-sm relative" 
                                      style={{ borderTop: `8px solid ${selectedTemplate.color}` }}>
                                     
-                                    <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none text-6xl">
-                                        {selectedTemplate.logo}
-                                    </div>
-
-                                    {(() => {
-                                        const cv = candidates.find(c => c.id === selectedCandidateId);
-                                        if (!cv) return null;
-                                        return (
-                                            <div className="space-y-8">
-                                                <header className="border-b border-slate-100 pb-6">
-                                                    <h3 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">{cv.candidateName}</h3>
-                                                    <p className="text-primary font-bold mt-1 text-sm">{cv.discipline} • {cv.yearsExp} Years Professional Experience</p>
-                                                    <div className="flex gap-4 mt-4 text-[11px] text-slate-500 font-medium">
-                                                        <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> {cv.email}</span>
-                                                        <span className="flex items-center gap-1"><Building2 className="w-3 h-3" /> {cv.phone}</span>
-                                                    </div>
-                                                </header>
-
-                                                <div className="grid grid-cols-2 gap-8">
-                                                    <section className="space-y-1">
-                                                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Specialization</p>
-                                                        <p className="text-xs font-bold text-slate-700">{cv.specializedField}</p>
-                                                    </section>
-                                                    <section className="space-y-1">
-                                                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Industry Expertise</p>
-                                                        <p className="text-xs font-bold text-slate-700">{cv.workFields}</p>
-                                                    </section>
+                                    {/* Edit Logic */}
+                                    {selectedTemplate.isCustom ? (
+                                        <div className="space-y-4">
+                                            <p className="text-xs text-slate-500 mb-4 bg-slate-50 p-3 rounded-lg">
+                                                These variables were automatically detected from your uploaded Word template. Fill them manually or click <b>"AI Map Formats"</b>.
+                                            </p>
+                                            {Object.keys(mappedData).map(key => (
+                                                <div key={key} className="space-y-1.5">
+                                                    <Label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                                                        {key}
+                                                    </Label>
+                                                    {mappedData[key] && mappedData[key].length > 100 ? (
+                                                        <textarea 
+                                                            className="text-sm border border-slate-200 bg-slate-50/50 min-h-[100px] w-full p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
+                                                            value={mappedData[key] || ''} 
+                                                            onChange={(e) => setMappedData({...mappedData, [key]: e.target.value})} 
+                                                        />
+                                                    ) : (
+                                                        <Input 
+                                                            className="text-sm border-slate-200 bg-slate-50/50" 
+                                                            value={mappedData[key] || ''} 
+                                                            onChange={(e) => setMappedData({...mappedData, [key]: e.target.value})} 
+                                                        />
+                                                    )}
                                                 </div>
-
-                                                <section className="space-y-2">
-                                                    <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest border-b border-slate-50 pb-1 flex items-center justify-between">
-                                                        Professional Summary
-                                                        <span className="text-[8px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">AI Generated</span>
-                                                    </p>
-                                                    <p className="text-xs text-slate-600 leading-relaxed font-serif italic border-l-2 border-slate-100 pl-4 py-2">
-                                                        {cv.professionalSummary || 'No summary available.'}
-                                                    </p>
-                                                </section>
-
-                                                <section className="space-y-2">
-                                                    <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest border-b border-slate-50 pb-1">Education</p>
-                                                    <p className="text-xs text-slate-700 font-bold">{cv.education || 'Bachelor Degree in Engineering'}</p>
-                                                </section>
-
-                                                <div className="pt-6 mt-8 border-t border-slate-50 flex items-center justify-between text-[8px] text-slate-300 font-black uppercase tracking-widest">
-                                                    <span>Generated by CV Extraction Pro</span>
-                                                    <span>Formated for: {selectedTemplate.name}</span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Full Name</Label>
+                                                    <Input className="text-sm" value={editingCandidate.candidateName || ''} onChange={e => setEditingCandidate({...editingCandidate, candidateName: e.target.value})} />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Discipline</Label>
+                                                    <Input className="text-sm" value={editingCandidate.discipline || ''} onChange={e => setEditingCandidate({...editingCandidate, discipline: e.target.value})} />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Email</Label>
+                                                    <Input className="text-sm" value={editingCandidate.email || ''} onChange={e => setEditingCandidate({...editingCandidate, email: e.target.value})} />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Phone</Label>
+                                                    <Input className="text-sm" value={editingCandidate.phone || ''} onChange={e => setEditingCandidate({...editingCandidate, phone: e.target.value})} />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Years Experience</Label>
+                                                    <Input type="number" className="text-sm" value={editingCandidate.yearsExp || 0} onChange={e => setEditingCandidate({...editingCandidate, yearsExp: parseFloat(e.target.value)})} />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Industry Expertise</Label>
+                                                    <Input className="text-sm" value={editingCandidate.workFields || ''} onChange={e => setEditingCandidate({...editingCandidate, workFields: e.target.value})} />
                                                 </div>
                                             </div>
-                                        );
-                                    })()}
+                                            <div className="space-y-1.5 pt-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Specialization</Label>
+                                                <Input className="text-sm" value={editingCandidate.specializedField || ''} onChange={e => setEditingCandidate({...editingCandidate, specializedField: e.target.value})} />
+                                            </div>
+                                            <div className="space-y-1.5 pt-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex justify-between">
+                                                    <span>Professional Summary <span className="text-indigo-500 lowercase opacity-70 ml-2">Appears in exported Word document</span></span>
+                                                </Label>
+                                                <textarea 
+                                                    className="text-sm min-h-[150px] leading-relaxed w-full p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
+                                                    value={editingCandidate.professionalSummary || ''} 
+                                                    onChange={e => setEditingCandidate({...editingCandidate, professionalSummary: e.target.value})} 
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5 pt-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex justify-between">
+                                                    <span>Education</span>
+                                                </Label>
+                                                <textarea 
+                                                    className="text-sm min-h-[100px] leading-relaxed w-full p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
+                                                    value={editingCandidate.education || ''} 
+                                                    onChange={e => setEditingCandidate({...editingCandidate, education: e.target.value})} 
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5 pt-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex justify-between">
+                                                    <span>Certifications</span>
+                                                </Label>
+                                                <textarea 
+                                                    className="text-sm min-h-[80px] leading-relaxed w-full p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
+                                                    value={editingCandidate.certifications || ''} 
+                                                    onChange={e => setEditingCandidate({...editingCandidate, certifications: e.target.value})} 
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5 pt-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex justify-between">
+                                                    <span>Key Skills</span>
+                                                </Label>
+                                                <textarea 
+                                                    className="text-sm min-h-[80px] leading-relaxed w-full p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
+                                                    value={editingCandidate.keySkills || ''} 
+                                                    onChange={e => setEditingCandidate({...editingCandidate, keySkills: e.target.value})} 
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

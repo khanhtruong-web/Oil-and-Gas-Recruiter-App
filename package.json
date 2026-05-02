@@ -51,6 +51,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/express": "^4.17.21",
     "@types/file-saver": "^2.0.7",
     "@types/multer": "^2.1.0",

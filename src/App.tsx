@@ -1291,6 +1291,7 @@ const MainContent = () => {
             if (errorMsg.includes('No document to update')) {
                 console.warn(`[App] Update failed: Document ${id} no longer exists.`);
                 toast.error('Expert record no longer exists in database');
+                setCandidates(prev => prev.filter(c => c.id !== id)); // Remove ghost record
             } else {
                 handleFirestoreError(err, OperationType.UPDATE, `candidates/${id}`);
             }
@@ -1329,11 +1330,14 @@ const MainContent = () => {
             if (errorMsg.includes('No document to update')) {
                 console.warn(`[App] Delete failed: Document ${id} no longer exists.`);
                 toast.error('Expert record no longer exists in database');
+                setCandidates(prev => prev.filter(c => c.id !== id)); // Remove ghost record
             } else {
                 handleFirestoreError(err, OperationType.UPDATE, `candidates/${id}`);
             }
         }
     };
+
+    const activeCandidates = candidates.filter(c => c.currentStatus !== 'Deleted');
 
     if (loading) {
         return (
@@ -1346,16 +1350,16 @@ const MainContent = () => {
 
   const renderView = () => {
     switch (activeTab) {
-      case 'dashboard': return <Dashboard candidates={candidates} activities={activities} />;
-      case 'folders': return <FolderManagement candidates={candidates} />;
+      case 'dashboard': return <Dashboard candidates={activeCandidates} activities={activities} />;
+      case 'folders': return <FolderManagement candidates={activeCandidates} />;
       case 'extract': return <CVExtraction onExpertAdded={addCandidate} />;
-      case 'templates': return <CompanyTemplates candidates={candidates} />;
-      case 'ai': return <AITools candidates={candidates} />;
-      case 'search': return <SmartSearch candidates={candidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} />;
+      case 'templates': return <CompanyTemplates candidates={activeCandidates} />;
+      case 'ai': return <AITools candidates={activeCandidates} />;
+      case 'search': return <SmartSearch candidates={activeCandidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} />;
       case 'personnel': return <PersonnelDirectory candidates={candidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} />;
-      case 'reports': return <ReportsView candidates={candidates} />;
+      case 'reports': return <ReportsView candidates={activeCandidates} />;
       case 'settings': return <Settings />;
-      default: return <Dashboard candidates={candidates} activities={activities} />;
+      default: return <Dashboard candidates={activeCandidates} activities={activities} />;
     }
   };
 

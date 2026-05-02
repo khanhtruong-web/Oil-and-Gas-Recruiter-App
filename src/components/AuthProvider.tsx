@@ -159,29 +159,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       try {
-        if (!(window as any).google?.accounts?.oauth2) {
-            toast.error("Google OAuth Library not loaded.");
-            resolve(null);
+        const clientId = profile.googleClientId;
+        const redirectUri = `${window.location.origin}/auth/callback`;
+        const scope = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets';
+        const params = new URLSearchParams({
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            response_type: 'token',
+            scope: scope,
+            prompt: 'consent'
+        });
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+        
+        const popup = window.open(authUrl, 'oauth_popup', 'width=600,height=700');
+        if (!popup) {
+            toast.error("Popup blocked! Please allow popups or open in a new tab to connect your account.");
+            reject(new Error("Popup blocked"));
             return;
         }
-        const client = (window as any).google.accounts.oauth2.initTokenClient({
-          client_id: profile.googleClientId,
-          scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets',
-          callback: (response: any) => {
-            if (response.error) {
-              console.error("Token client error:", response.error);
-              toast.error("Authentication failed: " + response.error);
-              reject(response.error);
-            } else {
-              googleManager.setToken(response.access_token, response.expires_in);
-              setAccessToken(response.access_token);
-              resolve(response.access_token);
+
+        const handleMessage = (event: MessageEvent) => {
+            if (!event.origin.endsWith('.run.app') && !event.origin.includes('localhost') && event.origin !== window.location.origin) {
+                return;
             }
-          },
-        });
-        client.requestAccessToken();
+            if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+                window.removeEventListener('message', handleMessage);
+                const { token, expiresIn } = event.data;
+                googleManager.setToken(token, expiresIn);
+                setAccessToken(token);
+                resolve(token);
+            } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
+                window.removeEventListener('message', handleMessage);
+                toast.error("Authentication failed: " + event.data.error);
+                reject(new Error(event.data.error));
+            }
+        };
+        window.addEventListener('message', handleMessage);
       } catch (err) {
-        console.error("Failed to initialize Google Auth Client", err);
+        console.error("Failed to initialize Google Auth Popup", err);
         reject(err);
       }
     });

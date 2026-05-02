@@ -436,12 +436,10 @@ export const Settings = () => {
                                             To prevent <span className="font-mono bg-amber-100 px-1">redirect_uri_mismatch</span> errors during login or connection, you must add the following URL to exactly <strong>both</strong> fields in your Google Cloud Console OAuth Client:
                                             <br/>
                                             1. <strong>Authorized JavaScript origins</strong>
-                                            <br/>
-                                            2. <strong>Authorized redirect URIs</strong> (Add both the exact URL and the URL with a trailing slash <span className="font-mono bg-amber-100 px-1">/</span>).
-                                            <br/>
-                                            <br/>
-                                            <strong>Your Current App URL to Add:</strong>
                                             <div className="font-mono bg-white border border-amber-200 mt-1 p-1 rounded select-all break-all">{typeof window !== 'undefined' ? window.location.origin : ''}</div>
+                                            <br/>
+                                            2. <strong>Authorized redirect URIs</strong> 
+                                            <div className="font-mono bg-white border border-amber-200 mt-1 p-1 rounded select-all break-all">{typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : ''}</div>
                                             <div className="mt-2 text-xs text-red-800 bg-red-50 p-2 rounded border border-red-100">
                                                 <strong>Still getting `redirect_uri_mismatch`?</strong><br/>
                                                 1. Click <strong>"error details"</strong> on the Google error page to see the <i>exact</i> missing URI.<br/>
