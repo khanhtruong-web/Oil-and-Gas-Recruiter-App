@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "Candidate": {
+      "title": "Candidate",
+      "description": "Information about a professional candidate",
+      "type": "object",
+      "properties": {
+        "candidateName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "yearsExp": { "type": "number" },
+        "education": { "type": "string" },
+        "discipline": { "type": "string" },
+        "specializedField": { "type": "string" },
+        "workFields": { "type": "string" },
+        "currentStatus": { "type": "string", "enum": ["New", "Reviewing", "Shortlisted", "Rejected", "Hired", "Deleted"] },
+        "aiScore": { "type": "number" },
+        "aiSummary": { "type": "string" },
+        "driveFileId": { "type": "string" },
+        "driveFileName": { "type": "string" },
+        "driveFileUrl": { "type": "string" },
+        "addedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "deletedAt": { "type": "string", "format": "date-time" },
+        "deletedBy": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "confirmed": { "type": "boolean" }
+      },
+      "required": ["candidateName", "yearsExp", "discipline", "ownerId"]
+    },
+    "AppSetting": {
+      "title": "AppSetting",
+      "description": "User profile and permissions",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["Admin", "Recruiter", "Viewer"] },
+        "driveRootFolderId": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "role"]
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "System activity logs",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "text": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Template": {
+      "title": "Template",
+      "description": "Custom CV templates (DOCX base64)",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "fileBase64": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "fileBase64", "ownerId"]
+    },
+    "Backup": {
+      "title": "Backup",
+      "description": "Historical snapshots for data recovery",
+      "type": "object",
+      "properties": {
+        "originalId": { "type": "string" },
+        "candidateName": { "type": "string" },
+        "data": { "type": "object" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "type": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/candidates/{candidateId}": {
+      "schema": "Candidate",
+      "description": "Storage for candidate information"
+    },
+    "/settings/{userId}": {
+      "schema": "AppSetting",
+      "description": "User profile with role"
+    },
+    "/activities/{activityId}": {
+      "schema": "Activity",
+      "description": "System-wide activity logs"
+    },
+    "/templates/{templateId}": {
+      "schema": "Template",
+      "description": "User uploaded Word templates"
+    },
+    "/backups/{backupId}": {
+      "schema": "Backup",
+      "description": "Data protection snapshots"
+    }
+  }
+}

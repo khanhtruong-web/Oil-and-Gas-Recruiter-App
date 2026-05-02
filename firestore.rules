@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/settings/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && 
+             (request.auth.token.email == 'khanhdcn@gmail.com' || 
+              getUserRole() == 'Admin');
+    }
+
+    function isRecruiter() {
+      return isAdmin() || getUserRole() in ['Recruiter', 'Editor'];
+    }
+
+    function isOwner(data) {
+      return isSignedIn() && data.get('ownerId', '') == request.auth.uid;
+    }
+
+    function getUserRole() {
+      return exists(/databases/$(database)/documents/settings/$(request.auth.uid)) ? 
+             get(/databases/$(database)/documents/settings/$(request.auth.uid)).data.get('role', 'Viewer') : 'Viewer';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation Blueprint for Candidate
+    function isValidCandidate(data) {
+      return data.keys().hasAll(['candidateName', 'yearsExp', 'discipline', 'ownerId', 'addedAt', 'updatedAt']) &&
+             data.candidateName is string && data.candidateName.size() <= 200 &&
+             data.yearsExp is number && data.yearsExp >= 0 &&
+             data.discipline is string && data.discipline.size() <= 100 &&
+             isValidId(data.ownerId) &&
+             (data.get('currentStatus', 'New') in ['New', 'Reviewing', 'Shortlisted', 'Rejected', 'Hired', 'Deleted']);
+    }
+
+    function isValidSetting(data) {
+      return data.keys().hasAny(['userId', 'role', 'updatedAt', 'driveRootFolderId', 'googleSheetId', 'driveSourceFolderId', 'googleClientId', 'autoBackupEnabled', 'autoSyncFolders']);
+    }
+
+    function isValidTemplate(data) {
+      return data.keys().hasAll(['name', 'fileBase64', 'ownerId', 'updatedAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.fileBase64 is string && data.fileBase64.size() <= 1000000 && // 1MB limit for base64 template
+             data.ownerId == request.auth.uid;
+    }
+
+    // GLOBAL DENY
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // CANDIDATES COLLECTION
+    match /candidates/{candidateId} {
+      allow read: if isSignedIn(); 
+      
+      allow create: if isRecruiter();
+      
+      allow update: if isRecruiter() || isOwner(resource.data);
+
+      allow delete: if isAdmin() || isOwner(resource.data);
+    }
+
+    // SETTINGS COLLECTION
+    match /settings/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidSetting(incoming());
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId && isValidSetting(incoming()) && incoming().role == existing().role);
+    }
+
+    // SYSTEM COLLECTION
+    match /system/{document=**} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ACTIVITIES COLLECTION
+    match /activities/{activityId} {
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+    }
+
+    // TEMPLATES COLLECTION
+    match /templates/{templateId} {
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
+      allow create: if isRecruiter() && isValidId(templateId) && isValidTemplate(incoming());
+      allow update: if (isAdmin() || (isRecruiter() && resource.data.get('ownerId', '') == request.auth.uid)) && 
+                      incoming().ownerId == existing().ownerId &&
+                      isValidTemplate(incoming());
+      allow delete: if isAdmin() || (isRecruiter() && resource.data.get('ownerId', '') == request.auth.uid);
+    }
+
+    // BACKUPS COLLECTION (Read-only for Admins, Write for Recruiters/Admins)
+    match /backups/{backupId} {
+      allow read: if isAdmin();
+      allow create: if isRecruiter();
+    }
+  }
+}

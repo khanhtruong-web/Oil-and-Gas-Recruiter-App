@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      // For general app usage, we might not strictly require verified email immediately, 
+      // but the guidelines suggest verified users for standard writes.
+      return request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation Blueprint for Candidate
+    function isValidCandidate(data) {
+      let requiredFields = ['candidateName', 'yearsExp', 'discipline', 'ownerId', 'addedAt', 'updatedAt'];
+      return data.keys().hasAll(requiredFields) &&
+             data.keys().size() <= 15 &&
+             data.candidateName is string && data.candidateName.size() <= 200 &&
+             data.yearsExp is number && data.yearsExp >= 0 &&
+             data.discipline is string && data.discipline.size() <= 100 &&
+             data.ownerId == request.auth.uid &&
+             data.addedAt == request.time &&
+             data.updatedAt == request.time &&
+             (data.get('currentStatus', 'New') in ['New', 'Reviewing', 'Shortlisted', 'Rejected', 'Hired']);
+    }
+
+    // Validation Blueprint for Updating Candidate
+    function isValidCandidateUpdate(data) {
+      return data.candidateName is string && data.candidateName.size() <= 200 &&
+             data.yearsExp is number && data.yearsExp >= 0 &&
+             data.discipline is string && data.discipline.size() <= 100 &&
+             data.updatedAt == request.time &&
+             (data.get('currentStatus', 'New') in ['New', 'Reviewing', 'Shortlisted', 'Rejected', 'Hired']);
+    }
+
+    // Validation Blueprint for UserSettings
+    function isValidSetting(data) {
+      return data.keys().hasAll(['userId', 'updatedAt']) &&
+             data.userId == request.auth.uid &&
+             data.updatedAt == request.time &&
+             (data.get('driveRootFolderId', '') is string && data.get('driveRootFolderId', '').size() <= 128);
+    }
+
+    // GLOBAL DENY
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // CANDIDATES COLLECTION
+    match /candidates/{candidateId} {
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      
+      allow create: if isSignedIn() && 
+                      isValidId(candidateId) && 
+                      isValidCandidate(incoming());
+                      
+      allow update: if isSignedIn() && 
+                      isValidId(candidateId) && 
+                      resource.data.ownerId == request.auth.uid &&
+                      isValidCandidateUpdate(incoming()) &&
+                      incoming().addedAt == existing().addedAt &&
+                      incoming().ownerId == existing().ownerId &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['candidateName', 'email', 'phone', 'yearsExp', 'discipline', 'specializedField', 'workFields', 'currentStatus', 'driveFileId', 'driveFileName', 'driveFileUrl', 'updatedAt']);
+                      
+      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // SETTINGS COLLECTION
+    match /settings/{userId} {
+      allow get: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidSetting(incoming());
+    }
+  }
+}

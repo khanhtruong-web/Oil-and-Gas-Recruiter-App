@@ -1,0 +1,266 @@
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { 
+  onAuthStateChanged, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut, 
+  setPersistence,
+  indexedDBLocalPersistence,
+  User 
+} from "firebase/auth";
+import { auth, db } from "../lib/firebase";
+import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { UserSettings } from "../types";
+import { OperationType, handleFirestoreError } from "../lib/firestore-error";
+import { googleManager } from "../services/GoogleWorkspaceManager";
+import { toast } from "sonner";
+
+interface AuthContextType {
+  user: User | null;
+  profile: UserSettings | null;
+  loading: boolean;
+  isSigningIn: boolean;
+  error: string | null;
+  accessToken: string | null;
+  signIn: () => Promise<void>;
+  logout: () => Promise<void>;
+  clearError: () => void;
+  refreshTokenSilently: () => Promise<string | null>;
+  authorizeDrive: () => Promise<string | null>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(googleManager.accessToken);
+
+  useEffect(() => {
+    // Sync googleManager with AuthContext values when loaded
+    if (profile?.googleClientId) {
+      googleManager.setClientId(profile.googleClientId);
+    }
+    googleManager.setRefreshFn(refreshTokenSilently);
+  }, [profile]);
+
+  useEffect(() => {
+    // Force local persistence for better iframe stability
+    setPersistence(auth, indexedDBLocalPersistence).catch(err => {
+      console.warn("Persistence error:", err);
+    });
+
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      try {
+        setUser(u);
+        if (u) {
+          // Fetch or create profile
+          const path = `settings/${u.uid}`;
+          const profileRef = doc(db, 'settings', u.uid);
+          let profileSnap;
+          try {
+            profileSnap = await getDoc(profileRef);
+          } catch (err) {
+            handleFirestoreError(err, OperationType.GET, path);
+          }
+          
+          if (profileSnap && profileSnap.exists()) {
+            const profileData = profileSnap.data() as UserSettings;
+            const ownerEmail = 'khanhdcn@gmail.com'; 
+            
+            // Auto-upgrade owner to Admin if they are not already
+            if (u.email === ownerEmail && profileData.role !== 'Admin') {
+              try {
+                const upgradeData = {
+                  ...profileData,
+                  role: 'Admin',
+                  updatedAt: serverTimestamp()
+                };
+                await setDoc(profileRef, upgradeData, { merge: true });
+                profileData.role = 'Admin';
+              } catch (updateErr) {
+                handleFirestoreError(updateErr, OperationType.WRITE, path);
+              }
+            }
+            setProfile(profileData);
+          } else {
+            const ownerEmail = 'khanhdcn@gmail.com';
+            const newProfile: any = {
+              userId: u.uid,
+              userName: u.displayName || 'Unidentified User',
+              email: u.email || '',
+              role: u.email === ownerEmail ? 'Admin' : 'Viewer', 
+              updatedAt: serverTimestamp()
+            };
+            try {
+              await setDoc(profileRef, newProfile);
+            } catch (createErr) {
+              handleFirestoreError(createErr, OperationType.WRITE, path);
+            }
+            setProfile({ ...newProfile, updatedAt: new Date().toISOString() } as UserSettings);
+          }
+        } else {
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error("Auth state transition error:", err);
+        setError("Lỗi kết nối database authentication.");
+      } finally {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  async function refreshTokenSilently(): Promise<string | null> {
+    if (!profile?.googleClientId) return null;
+    
+    console.log("[Auth] Attempting silent token refresh...");
+    return new Promise((resolve) => {
+      if (!(window as any).google?.accounts?.oauth2) {
+        resolve(null);
+        return;
+      }
+
+      try {
+        const client = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: profile.googleClientId,
+          scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets',
+          prompt: '', // Silent refresh
+          callback: (response: any) => {
+            if (response.error) {
+              console.error("Silent refresh error:", response.error);
+              resolve(null);
+            } else {
+              console.log("[Auth] Silent refresh successful");
+              googleManager.setToken(response.access_token, response.expires_in);
+              setAccessToken(response.access_token);
+              resolve(response.access_token);
+            }
+          },
+        });
+        client.requestAccessToken();
+      } catch (e) {
+        console.error("[Auth] Silent refresh failed exception", e);
+        resolve(null);
+      }
+    });
+  }
+
+  const authorizeDrive = async (): Promise<string | null> => {
+    return new Promise((resolve, reject) => {
+      if (!profile?.googleClientId) {
+        const err = new Error("Please configure Google OAuth Client ID in Settings first.");
+        toast.error(err.message);
+        resolve(null);
+        return;
+      }
+      try {
+        if (!(window as any).google?.accounts?.oauth2) {
+            toast.error("Google OAuth Library not loaded.");
+            resolve(null);
+            return;
+        }
+        const client = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: profile.googleClientId,
+          scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets',
+          callback: (response: any) => {
+            if (response.error) {
+              console.error("Token client error:", response.error);
+              toast.error("Authentication failed: " + response.error);
+              reject(response.error);
+            } else {
+              googleManager.setToken(response.access_token, response.expires_in);
+              setAccessToken(response.access_token);
+              resolve(response.access_token);
+            }
+          },
+        });
+        client.requestAccessToken();
+      } catch (err) {
+        console.error("Failed to initialize Google Auth Client", err);
+        reject(err);
+      }
+    });
+  };
+
+  const signIn = async () => {
+    if (isSigningIn) return;
+    setIsSigningIn(true);
+    const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/drive'); 
+    provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+    provider.setCustomParameters({ prompt: 'select_account' });
+    
+    setError(null);
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const token = credential?.accessToken;
+      if (token) {
+        // Firebase access token doesn't have an explicit expiry we can trust easily here
+        // so we treat it as a normal session start. Google tokens from Firebase popup
+        // often last 1 hour.
+        googleManager.setToken(token, 3500); 
+        setAccessToken(token);
+      }
+
+      // Log login activity
+      if (result.user) {
+        const path = 'activities';
+        try {
+          await addDoc(collection(db, path), {
+            type: 'login',
+            text: `${result.user.email} logged in to the dashboard.`,
+            timestamp: serverTimestamp(),
+            userName: result.user.displayName || result.user.email,
+            userId: result.user.uid
+          });
+        } catch (logErr) {
+          handleFirestoreError(logErr, OperationType.WRITE, path);
+        }
+      }
+
+    } catch (e: any) {
+      console.error("Sign in error", e);
+      if (e.code === 'auth/popup-closed-by-user') {
+        setError("Cửa sổ đăng nhập đã bị đóng.");
+      } else if (e.code === 'auth/cancelled-popup-request') {
+        console.warn("Popup request was cancelled by a newer request");
+      } else if (e.code === 'auth/network-request-failed') {
+        setError("Lỗi mạng, vui lòng kiểm tra kết nối.");
+      } else if (e.code === 'auth/unauthorized-domain') {
+        setError("Tên miền này chưa được cấp phép trong Firebase console.");
+      } else {
+        setError(e.message || "Đã xảy ra lỗi khi đăng nhập.");
+      }
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const logout = async () => {
+    await signOut(auth);
+    googleManager.logout();
+    setAccessToken(null);
+  };
+
+  const clearError = () => setError(null);
+
+  return (
+    <AuthContext.Provider value={{ user, profile, loading, isSigningIn, error, accessToken, signIn, logout, clearError, refreshTokenSilently, authorizeDrive }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
