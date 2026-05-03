@@ -128,8 +128,9 @@ const LoginPage = () => {
                       <p className="mt-2 text-[10px] font-sans leading-relaxed">
                         💡 **OAuth Critical Setup:**<br/>
                         1. **Firebase Console:** Add Domain to *Authorized Domains*.<br/>
-                        2. **GCP Console:** Add this to *Authorized Redirect URIs*:<br/>
+                        2. **GCP Console:** Add BOTH of these URLs to *Authorized Redirect URIs*:<br/>
                            <div className="font-mono bg-white/10 px-2 py-1 rounded text-[8.5px] mt-1 mb-1 select-all border border-white/5">https://gen-lang-client-0648025381.firebaseapp.com/__/auth/handler</div>
+                           <div className="font-mono bg-white/10 px-2 py-1 rounded text-[8.5px] mt-1 mb-1 select-all border border-white/5">{window.location.origin}/auth/callback</div>
                         3. **Still getting 400 error?** Click **"error details"** on Google 400 page to see the exact URI Google is receiving. Copy it exactly into GCP *Authorized Redirect URIs* (including protocol).<br/>
                         4. **Popup Closed:** Usually means the window was closed before finishing (often after seeing the error 400).
                       </p>
@@ -1140,7 +1141,7 @@ const MainContent = () => {
                 driveFileId: finalDriveId || (existingMatch?.driveFileId || null),
                 driveFileUrl: finalDriveUrl || (existingMatch?.driveFileUrl || null),
                 ownerId: user!.uid,
-                currentStatus: c.currentStatus || (existingMatch && existingMatch.currentStatus !== 'Deleted' ? existingMatch.currentStatus : 'New'),
+                currentStatus: existingMatch?.currentStatus?.toLowerCase() === 'deleted' ? existingMatch.currentStatus : (c.currentStatus || 'New'),
                 addedAt: existingMatch ? (existingMatch.addedAt || serverTimestamp()) : serverTimestamp(),
                 updatedAt: serverTimestamp(),
                 email: c.email || (existingMatch?.email || ''),
