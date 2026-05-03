@@ -80,7 +80,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   driveSourceFolderId: sysData.driveSourceFolderId,
                   googleSheetId: sysData.googleSheetId,
                   googleClientId: sysData.googleClientId,
-                  autoBackupEnabled: sysData.autoBackupEnabled
+                  autoBackupEnabled: sysData.autoBackupEnabled,
+                  geminiApiKey: sysData.geminiApiKey
                 });
               }
             } catch (sysErr) {
@@ -113,7 +114,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   driveSourceFolderId: sysData.driveSourceFolderId,
                   googleSheetId: sysData.googleSheetId,
                   googleClientId: sysData.googleClientId,
-                  autoBackupEnabled: sysData.autoBackupEnabled
+                  autoBackupEnabled: sysData.autoBackupEnabled,
+                  geminiApiKey: sysData.geminiApiKey
                 });
               }
             } catch (sysErr) {

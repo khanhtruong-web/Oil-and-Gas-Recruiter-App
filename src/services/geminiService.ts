@@ -22,11 +22,17 @@ class GeminiService {
     return GeminiService.instance;
   }
 
-  public initClient() {
-    const key = localStorage.getItem('CUSTOM_GEMINI_KEY') || process.env.GEMINI_API_KEY;
+  public initClient(providedKey?: string) {
+    const key = providedKey || process.env.GEMINI_API_KEY;
     if (key) {
+      // Re-initialize only if the key is effectively different than current initialized state.
+      // But we can just overwrite.
       this.ai = new GoogleGenAI({ apiKey: key });
     }
+  }
+
+  public setApiKey(key: string) {
+    this.initClient(key);
   }
 
   private readonly CV_PARSER_SCHEMA = {

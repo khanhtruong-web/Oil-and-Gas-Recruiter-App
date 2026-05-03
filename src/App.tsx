@@ -929,6 +929,12 @@ const MainContent = () => {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+    useEffect(() => {
+        if (profile?.geminiApiKey) {
+            geminiService.setApiKey(profile.geminiApiKey);
+        }
+    }, [profile?.geminiApiKey]);
+
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(err => {
@@ -988,14 +994,8 @@ const MainContent = () => {
     useEffect(() => {
         if (!user || !profile) return;
         
-        // Global view for recruiters/admins, restricted for viewers usually handled by rules.
-        // For non-admins, we MUST apply the ownerId filter to satisfy security rules.
-        let q;
-        if (profile.role === 'Admin') {
-            q = collection(db, 'candidates');
-        } else {
-            q = query(collection(db, 'candidates'), where('ownerId', '==', user.uid));
-        }
+        // All signed-in users have permission to read all candidates
+        const q = collection(db, 'candidates');
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const list = snapshot.docs.map(doc => {

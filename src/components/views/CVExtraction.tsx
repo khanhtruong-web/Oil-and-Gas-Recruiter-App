@@ -22,8 +22,9 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { handleFirestoreError, OperationType } from '../../lib/firestore-error';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Candidate>, driveFileId?: string) => void }) => {
     const [loading, setLoading] = useState(false);

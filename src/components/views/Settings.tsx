@@ -363,7 +363,7 @@ export const Settings = () => {
                             <Input 
                                 type="password"
                                 placeholder="..." 
-                                defaultValue={localStorage.getItem('CUSTOM_GEMINI_KEY') || ''}
+                                defaultValue={settings?.geminiApiKey || ''}
                                 id="custom_gemini_key_input"
                                 className="h-12 text-[1rem] border-[#1e293b] bg-[#1e293b] focus-visible:ring-blue-500 text-white w-full"
                             />
@@ -372,19 +372,18 @@ export const Settings = () => {
                                 <Button 
                                     size="sm" 
                                     className="h-11 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-xl flex items-center gap-2"
-                                    onClick={() => {
+                                    onClick={async () => {
                                         const val = (document.getElementById('custom_gemini_key_input') as HTMLInputElement).value;
-                                        if (val) {
-                                            localStorage.setItem('CUSTOM_GEMINI_KEY', val);
-                                            toast.success('AI Configuration updated');
-                                        } else {
-                                            localStorage.removeItem('CUSTOM_GEMINI_KEY');
-                                            toast.info('Custom key removed. Using default.');
+                                        try {
+                                            await setDoc(doc(db, 'settings', 'system_config'), { geminiApiKey: val }, { merge: true });
+                                            toast.success('AI Configuration updated globally');
+                                            setTimeout(() => window.location.reload(), 500);
+                                        } catch (err) {
+                                            handleFirestoreError(err, OperationType.WRITE, 'settings/system_config');
                                         }
-                                        setTimeout(() => window.location.reload(), 1000);
                                     }}
                                 >
-                                    <Key className="w-4 h-4" /> Save Key
+                                    <Key className="w-4 h-4" /> Save Key Globally
                                 </Button>
                                 <Button 
                                     type="button"
@@ -392,7 +391,7 @@ export const Settings = () => {
                                     size="sm" 
                                     className="h-11 px-5 border-slate-700 bg-transparent text-slate-200 hover:bg-slate-800 hover:text-white rounded-xl flex items-center gap-2"
                                     onClick={async () => {
-                                        const val = (document.getElementById('custom_gemini_key_input') as HTMLInputElement).value || localStorage.getItem('CUSTOM_GEMINI_KEY');
+                                        const val = (document.getElementById('custom_gemini_key_input') as HTMLInputElement).value || settings?.geminiApiKey;
                                         if (!val) return toast.error('Please enter an API key first');
                                         toast.loading('Testing AI Connection...', { id: 'ai-tester' });
                                         try {

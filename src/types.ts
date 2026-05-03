@@ -48,6 +48,7 @@ export interface SystemConfig {
   googleSheetId?: string;
   googleClientId?: string;
   autoBackupEnabled?: boolean;
+  geminiApiKey?: string;
 }
 
 export interface UserSettings {
@@ -61,6 +62,7 @@ export interface UserSettings {
   googleSheetId?: string;
   googleClientId?: string;
   autoBackupEnabled?: boolean;
+  geminiApiKey?: string;
   updatedAt: string;
 }
 

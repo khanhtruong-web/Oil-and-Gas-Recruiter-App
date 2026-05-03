@@ -343,13 +343,10 @@ export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) =>
                                 Important Setup Steps:
                             </p>
                             <ol className="list-decimal pl-5 space-y-1.5 marker:text-slate-400">
-                                <li><strong>Enable API:</strong> Go to <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer" className="font-semibold text-blue-600 hover:underline">Google Cloud Console</a>, select your project, and enable the <strong>Google Drive API</strong>.</li>
-                                <li><strong>Get Token:</strong> Go to <a href="https://developers.google.com/oauthplayground/" target="_blank" rel="noreferrer" className="font-semibold text-blue-600 hover:underline">Google OAuth Playground</a>.</li>
-                                <li>Under <strong>Step 1</strong>, scroll down to <strong>Drive API v3</strong>, select <code className="text-pink-600 text-xs bg-pink-50 px-1 py-0.5 rounded">https://www.googleapis.com/auth/drive.file</code>, and click <strong>Authorize APIs</strong>.</li>
-                                <li>Sign in to your Google Workspace account and allow access.</li>
-                                <li>Under <strong>Step 2</strong>, click <strong>Exchange authorization code for tokens</strong>.</li>
-                                <li>Copy the <strong>Access token</strong> (not the refresh token) and paste it below. <em>(Note: Tokens expire after 1 hour)</em></li>
-                                <li><strong>Root Folder ID:</strong> Ensure the ID entered below is a valid folder ID that you own or have access to. You can find it in the URL when opening the folder in Drive (e.g., <code>drive.google.com/drive/folders/YOUR_FOLDER_ID</code>).</li>
+                                <li><strong>Global Configuration:</strong> The <strong>Root Destination Folder ID</strong> is managed globally by the Admin in the Settings tab. You do not need to configure it manually.</li>
+                                <li><strong>Connect Google Account:</strong> Click <strong>"Connect Google Account"</strong> in the Settings tab so this app can access Google Drive using your credentials.</li>
+                                <li><strong>Folder Permissions:</strong> The company admin MUST share the destination Google Drive folder with your email.</li>
+                                <li><strong>Data Entry Guidelines:</strong> Because the API keys and IDs are synchronized globally from the admin's configuration (`system_config`), you do not need any API Keys, manual tokens, or Folder IDs. Simply log in and click the "Sync" buttons!</li>
                             </ol>
 
                             <div className="mt-4 pt-4 border-t border-slate-200">
@@ -358,47 +355,24 @@ export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) =>
                                     Troubleshooting Errors:
                                 </p>
                                 <ul className="list-disc pl-5 space-y-1 text-slate-600 text-xs">
-                                   <li><strong>"API is disabled":</strong> Ensure you completed Step 1. The Google Cloud project generating the token MUST have Drive API enabled.</li>
-                                   <li><strong>"File not found: .":</strong> This means your Root Destination Folder ID is empty or invalid. Check Step 7.</li>
-                                   <li><strong>"Request had invalid authentication credentials":</strong> Your token expired. Go back to the OAuth Playground to generate a new Access Token.</li>
+                                   <li><strong>"Authentication Required":</strong> Ensure you clicked "Connect Google Account" in the Settings tab.</li>
+                                   <li><strong>"File not found: .":</strong> The admin has not set up the Root Destination Folder ID in Settings, or you don't have access to that folder.</li>
                                 </ul>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                            <div className="md:col-span-12">
-                                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">OAuth2 Access Token</Label>
-                                <Input 
-                                    type="password" 
-                                    placeholder="Paste your Access token here..." 
-                                    value={manualToken}
-                                    onChange={e => setManualToken(e.target.value)}
-                                    className="font-mono text-sm bg-slate-50"
-                                    onBlur={saveSettings}
-                                />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-1">
+                                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Root Destination Folder ID</Label>
+                                <div className="font-mono text-sm bg-slate-100 p-2 rounded-md truncate" title={rootId || 'Not Configured'}>
+                                    {rootId || <span className="text-slate-400 italic">Not Configured globally</span>}
+                                </div>
                             </div>
-                            <div className="md:col-span-5">
+                            <div className="md:col-span-1">
                                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Source Folder ID (Auto-Scan)</Label>
-                                <Input 
-                                    placeholder="e.g. 1aBcDeXyZ..." 
-                                    value={sourceId}
-                                    onChange={e => setSourceId(e.target.value)}
-                                    className="font-mono text-sm bg-slate-50"
-                                    onBlur={saveSettings}
-                                />
-                            </div>
-                            <div className="md:col-span-7">
-                                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                                    Root Destination Folder ID
-                                    <div title="The parent folder containing CVs_Drilling, CVs_HSE, etc."><Info className="w-3.5 h-3.5" /></div>
-                                </Label>
-                                <Input 
-                                    placeholder="Root folder ID for categorization" 
-                                    value={rootId}
-                                    onChange={e => setRootId(e.target.value)}
-                                    className="font-mono text-sm bg-slate-50"
-                                    onBlur={saveSettings}
-                                />
+                                <div className="font-mono text-sm bg-slate-100 p-2 rounded-md truncate" title={sourceId || 'Not Configured'}>
+                                    {sourceId || <span className="text-slate-400 italic">Not Configured globally</span>}
+                                </div>
                             </div>
                         </div>
 
