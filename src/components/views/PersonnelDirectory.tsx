@@ -27,25 +27,61 @@ export const PersonnelDirectory = ({
 }) => {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [viewTab, setViewTab] = useState<'active' | 'rejected' | 'trash'>('active');
+    const [statusFilter, setStatusFilter] = useState<string>('All');
+    const [dateFrom, setDateFrom] = useState<string>('');
+    const [dateTo, setDateTo] = useState<string>('');
     const { disciplineDetails } = useDisciplines();
     
     const filteredList: Candidate[] = candidates.filter(c => {
         const cs = c.currentStatus?.toLowerCase() || (c as any).status?.toLowerCase();
         
+        let tabMatch = false;
         if (viewTab === 'trash') {
-            return cs === 'deleted';
+            tabMatch = cs === 'deleted';
         } else if (viewTab === 'rejected') {
-            return cs === 'rejected';
+            tabMatch = cs === 'rejected';
         } else {
-            // View active targets everything not deleted and not rejected
-            return cs !== 'deleted' && cs !== 'rejected';
+            tabMatch = cs !== 'deleted' && cs !== 'rejected';
         }
+        
+        if (!tabMatch) return false;
+
+        if (viewTab === 'active' && statusFilter !== 'All') {
+            if (cs !== statusFilter.toLowerCase()) return false;
+        }
+
+        if (dateFrom || dateTo) {
+            const addedAtMs = c.addedAt ? new Date(c.addedAt).getTime() : 0;
+            if (addedAtMs > 0) {
+                if (dateFrom) {
+                    const fromMs = new Date(dateFrom).getTime();
+                    if (addedAtMs < fromMs) return false;
+                }
+                if (dateTo) {
+                    const toDate = new Date(dateTo);
+                    toDate.setHours(23, 59, 59, 999);
+                    if (addedAtMs > toDate.getTime()) return false;
+                }
+            }
+        }
+
+        return true;
     });
     const displayList = [...filteredList];
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
+
+    const totalPages = Math.ceil(displayList.length / ITEMS_PER_PAGE);
+    const paginatedList = displayList.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+    // Reset pagination when filters change
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [viewTab, statusFilter, dateFrom, dateTo]);
 
     const toggleSelectAll = () => {
-        if (selectedIds.length === displayList.length) setSelectedIds([]);
-        else setSelectedIds(displayList.map(c => c.id!));
+        if (selectedIds.length === paginatedList.length) setSelectedIds([]);
+        else setSelectedIds(paginatedList.map(c => c.id!));
     };
 
     const toggleSelect = (id: string) => {
@@ -132,6 +168,59 @@ export const PersonnelDirectory = ({
                 </div>
             </CardHeader>
             <CardContent className="p-4 bg-slate-50">
+                <div className="flex flex-wrap items-end gap-3 mb-4">
+                    {viewTab === 'active' && (
+                        <div className="flex flex-col gap-1 w-full sm:w-auto">
+                            <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">
+                                STATUS FILTER
+                            </label>
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="w-full sm:w-[150px] h-8 text-[11px] font-bold bg-white rounded-lg">
+                                    <SelectValue placeholder="All Statuses" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All Active</SelectItem>
+                                    <SelectItem value="New">New</SelectItem>
+                                    <SelectItem value="Reviewing">Reviewing</SelectItem>
+                                    <SelectItem value="Shortlisted">Shortlisted</SelectItem>
+                                    <SelectItem value="Hired">Hired</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                    <div className="flex flex-col gap-1 w-full sm:w-auto">
+                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">
+                            FROM DATE
+                        </label>
+                        <input 
+                            type="date" 
+                            className="h-8 px-2 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 ring-primary/20 w-full sm:w-[130px]"
+                            value={dateFrom}
+                            onChange={e => setDateFrom(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1 w-full sm:w-auto">
+                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">
+                            TO DATE
+                        </label>
+                        <input 
+                            type="date" 
+                            className="h-8 px-2 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 ring-primary/20 w-full sm:w-[130px]"
+                            value={dateTo}
+                            onChange={e => setDateTo(e.target.value)}
+                        />
+                    </div>
+                    {(statusFilter !== 'All' || dateFrom || dateTo) && (
+                        <Button 
+                            variant="ghost" 
+                            onClick={() => { setStatusFilter('All'); setDateFrom(''); setDateTo(''); }}
+                            className="text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-800 h-8"
+                        >
+                            Clear Filters
+                        </Button>
+                    )}
+                </div>
+
                 {selectedIds.length > 0 && (
                     <div className="bg-primary/5 p-4 flex items-center justify-between border border-primary/20 rounded-xl mb-4">
                         <span className="text-sm font-bold text-primary">{selectedIds.length} selected</span>
@@ -160,7 +249,7 @@ export const PersonnelDirectory = ({
                             <tr>
                                 <th className="p-4 w-12 text-center">
                                     <Checkbox 
-                                        checked={selectedIds.length === displayList.length && displayList.length > 0}
+                                        checked={selectedIds.length === paginatedList.length && paginatedList.length > 0}
                                         onCheckedChange={toggleSelectAll}
                                     />
                                 </th>
@@ -177,7 +266,7 @@ export const PersonnelDirectory = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {displayList.map(c => (
+                            {paginatedList.map(c => (
                                 <tr key={c.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.includes(c.id!) ? 'bg-primary/5' : ''}`}>
                                     <td className="p-4 text-center">
                                         <Checkbox 
@@ -335,9 +424,9 @@ export const PersonnelDirectory = ({
                                     </td>
                                 </tr>
                             ))}
-                            {displayList.length === 0 && (
+                            {paginatedList.length === 0 && (
                                 <tr>
-                                    <td colSpan={7} className="p-10 text-center text-slate-400 italic font-medium">
+                                    <td colSpan={11} className="p-10 text-center text-slate-400 italic font-medium">
                                         No personnel records found.
                                     </td>
                                 </tr>
@@ -345,6 +434,34 @@ export const PersonnelDirectory = ({
                         </tbody>
                     </table>
                 </div>
+
+                {totalPages > 1 && (
+                    <div className="mt-4 flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                            Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, displayList.length)} of {displayList.length}
+                        </span>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                                className="h-8 text-xs font-bold border-slate-200"
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                                className="h-8 text-xs font-bold border-slate-200"
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
