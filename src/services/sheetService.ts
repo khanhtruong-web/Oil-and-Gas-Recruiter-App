@@ -29,6 +29,9 @@ async function callGoogleApiDirect(url: string, options: RequestInit = {}) {
       }
   });
   if (!res.ok) {
+      if (res.status === 401 && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth-required'));
+      }
       const errData = await res.json().catch(() => null);
       throw new Error(errData?.error?.message || `HTTP Error ${res.status}`);
   }
@@ -52,13 +55,11 @@ export async function syncToGoogleSheets(sheetId?: string, values?: any[], sheet
     });
   } catch (err: any) {
     const errorMsg = err.message || JSON.stringify(err);
-    if (!errorMsg.includes('AUTH_REQUIRED')) {
-        console.error(`[Sheets] Append failed for range "${range}":`, errorMsg);
-    }
     
     if (errorMsg.includes("Unable to parse range") || errorMsg.includes("400") || errorMsg.toLowerCase().includes("range") || errorMsg.includes("INVALID_ARGUMENT")) {
       try {
         await callGoogleApiDirect(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

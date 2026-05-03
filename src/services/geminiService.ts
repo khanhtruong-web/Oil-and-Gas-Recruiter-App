@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Candidate } from "../types";
-import { collection, query, where, getDocs, limit, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, limit, serverTimestamp, getDoc, doc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
 /**
@@ -22,11 +22,19 @@ class GeminiService {
     return GeminiService.instance;
   }
 
-  public initClient(providedKey?: string) {
-    const key = providedKey || process.env.GEMINI_API_KEY;
+  public async initClient(providedKey?: string) {
+    let key = providedKey || process.env.GEMINI_API_KEY;
+    if (!key && !this.ai) {
+        try {
+            const sysDoc = await getDoc(doc(db, 'settings', 'system_config'));
+            if (sysDoc.exists() && sysDoc.data().geminiApiKey) {
+                key = sysDoc.data().geminiApiKey;
+            }
+        } catch(e) {
+            console.warn("Could not fetch gemini fallback key", e);
+        }
+    }
     if (key) {
-      // Re-initialize only if the key is effectively different than current initialized state.
-      // But we can just overwrite.
       this.ai = new GoogleGenAI({ apiKey: key });
     }
   }
@@ -59,7 +67,7 @@ class GeminiService {
   };
 
   async parseCV(text: string): Promise<Partial<Candidate>> {
-    if (!this.ai) this.initClient();
+    if (!this.ai) await this.initClient();
     if (!this.ai) throw new Error("API Key logic failed: Gemini API key is required.");
 
     try {
@@ -89,7 +97,7 @@ class GeminiService {
   }
 
   async mapCVToTemplate(rawText: string, vars: string[]): Promise<any> {
-    if (!this.ai) this.initClient();
+    if (!this.ai) await this.initClient();
     if (!this.ai) throw new Error("API Key logic failed: Gemini API key is required.");
 
     const schemaProperties: any = {};
@@ -126,7 +134,8 @@ ${rawText.substring(0, 30000)}`,
   }
 
   async analyzeCV(text: string, mode: 'spellcheck' | 'review' | 'suggest', jobDescription?: string, allCandidates?: Candidate[]): Promise<string> {
-    if (!this.ai) this.initClient();
+    if (!this.ai) await this.initClient();
+    if (!this.ai) throw new Error("API Key logic failed: Gemini API key is required.");
     
     let prompt = "";
     let contents = "";

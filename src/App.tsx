@@ -526,11 +526,19 @@ const ImportExpert = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Candidate>
     setLoading(true);
     setActiveFileId(fileId);
     try {
+      if (!geminiService['ai']) {
+          const sysDoc = await getDoc(doc(db, 'settings', 'system_config'));
+          if (sysDoc.exists() && sysDoc.data().geminiApiKey) {
+              geminiService.setApiKey(sysDoc.data().geminiApiKey);
+          } else if (settings?.geminiApiKey) {
+              geminiService.setApiKey(settings.geminiApiKey);
+          }
+      }
       const data = await geminiService.parseCV(content);
       setParsedCandidate(data);
       toast.success('AI parsed CV successfully!');
-    } catch (e) {
-      toast.error('AI Parsing failed.');
+    } catch (e: any) {
+      toast.error('AI Parsing failed: ' + (e?.message || ''));
       console.error(e);
     } finally {
       setLoading(false);
@@ -1569,18 +1577,19 @@ const MainContent = () => {
     }
 
   const renderView = () => {
-    switch (activeTab) {
-      case 'dashboard': return <Dashboard candidates={activeCandidates} activities={activities} />;
-      case 'folders': return <FolderManagement candidates={activeCandidates} />;
-      case 'extract': return <CVExtraction onExpertAdded={addCandidate} />;
-      case 'templates': return <CompanyTemplates candidates={activeCandidates} />;
-      case 'ai': return <AITools candidates={activeCandidates} />;
-      case 'search': return <SmartSearch candidates={activeCandidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} />;
-      case 'personnel': return <PersonnelDirectory candidates={candidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} onEmptyTrash={emptyTrash} />;
-      case 'reports': return <ReportsView candidates={activeCandidates} />;
-      case 'settings': return <Settings />;
-      default: return <Dashboard candidates={activeCandidates} activities={activities} />;
-    }
+    return (
+      <div className="h-full relative">
+        <div className={activeTab === 'dashboard' ? 'block h-full' : 'hidden'}><Dashboard candidates={activeCandidates} activities={activities} /></div>
+        <div className={activeTab === 'folders' ? 'block h-full' : 'hidden'}><FolderManagement candidates={activeCandidates} /></div>
+        <div className={activeTab === 'extract' ? 'block h-full' : 'hidden'}><CVExtraction onExpertAdded={addCandidate} /></div>
+        <div className={activeTab === 'templates' ? 'block h-full' : 'hidden'}><CompanyTemplates candidates={activeCandidates} /></div>
+        <div className={activeTab === 'ai' ? 'block h-full' : 'hidden'}><AITools candidates={activeCandidates} /></div>
+        <div className={activeTab === 'search' ? 'block h-full' : 'hidden'}><SmartSearch candidates={activeCandidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} /></div>
+        <div className={activeTab === 'personnel' ? 'block h-full' : 'hidden'}><PersonnelDirectory candidates={candidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} onEmptyTrash={emptyTrash} /></div>
+        <div className={activeTab === 'reports' ? 'block h-full' : 'hidden'}><ReportsView candidates={activeCandidates} /></div>
+        <div className={activeTab === 'settings' ? 'block h-full' : 'hidden'}><Settings /></div>
+      </div>
+    );
   };
 
   const menuSections = [
@@ -1605,7 +1614,24 @@ const MainContent = () => {
       items: [
         { id: 'personnel', label: 'Personnel Directory', icon: Users },
         { id: 'reports', label: 'Reports', icon: BarChart3 },
+      ]
+    },
+    {
+      title: 'System',
+      items: [
         { id: 'settings', label: 'Settings', icon: SettingsIcon },
+        { 
+          id: 'drive_link', 
+          label: 'Shared CV Drive', 
+          icon: ExternalLink, 
+          action: () => {
+             if (settings?.driveRootFolderId) {
+                 window.open(`https://drive.google.com/drive/folders/${settings.driveRootFolderId}`, '_blank');
+             } else {
+                 toast.error('Shared Drive folder is not configured by the admin yet.');
+             }
+          }
+        },
       ]
     }
   ];
@@ -1644,7 +1670,9 @@ const MainContent = () => {
               {section.items.map(item => (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    item.action ? item.action() : setActiveTab(item.id);
+                  }}
                   className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-200 group relative ${
                     activeTab === item.id 
                     ? 'bg-white/5 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' 

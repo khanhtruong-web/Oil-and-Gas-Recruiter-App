@@ -44,6 +44,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (profile?.googleClientId) {
       googleManager.setClientId(profile.googleClientId);
     }
+    if (profile?.driveToken) {
+      googleManager.setToken(profile.driveToken, 3600);
+      setAccessToken(profile.driveToken);
+    }
     googleManager.setRefreshFn(refreshTokenSilently);
   }, [profile, user]);
 

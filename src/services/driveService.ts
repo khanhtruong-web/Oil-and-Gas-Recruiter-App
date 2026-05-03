@@ -18,6 +18,9 @@ async function callGoogleApiDirect(url: string, options: RequestInit = {}) {
       }
   });
   if (!res.ok) {
+      if (res.status === 401 && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth-required'));
+      }
       const errData = await res.json().catch(() => null);
       throw new Error(errData?.error?.message || `HTTP Error ${res.status}`);
   }
