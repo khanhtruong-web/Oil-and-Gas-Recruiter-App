@@ -207,11 +207,13 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
 
     const exportToCSV = () => {
         if (extractedList.length === 0) return;
-        const headers = ["NO", "CV FILE NAME", "CANDIDATE NAME", "EXP", "EDUCATION", "WORK FIELDS", "SPECIALIZED FIELD", "DISCIPLINE"];
+        const headers = ["NO", "CV FILE NAME", "CANDIDATE NAME", "EMAIL", "PHONE", "EXP", "EDUCATION", "WORK FIELDS", "SPECIALIZED FIELD", "DISCIPLINE"];
         const rows = extractedList.map((cv, index) => [
             index + 1,
             `"${cv.fileName}"`,
             `"${cv.candidateName}"`,
+            `"${cv.email || 'N/A'}"`,
+            `"${cv.phone || 'N/A'}"`,
             cv.yearsExp,
             `"${cv.education || "N/A"}"`,
             `"${cv.workFields || "N/A"}"`,
@@ -380,24 +382,26 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
 
                                 <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-xl">
                                     <div className="overflow-x-auto">
-                                        <table className="w-full text-left border-collapse min-w-[1400px]">
+                                        <table className="w-full text-left border-collapse">
                                             <thead className="bg-slate-50/50 border-b border-slate-100 text-[10px] uppercase font-black tracking-widest text-slate-400">
                                                 <tr>
-                                                    <th className="p-4 w-14 text-center">
+                                                    <th className="p-4 w-10 text-center">
                                                         <Checkbox 
                                                             checked={selectedIds.length === extractedList.length && extractedList.length > 0} 
                                                             onCheckedChange={toggleSelectAll} 
                                                         />
                                                     </th>
-                                                    <th className="p-4 w-16">NO</th>
-                                                    <th className="p-4 w-64">CV FILE NAME</th>
-                                                    <th className="p-4 w-60">CANDIDATE NAME</th>
-                                                    <th className="p-4 w-20">EXP</th>
-                                                    <th className="p-4 w-52">EDUCATION</th>
-                                                    <th className="p-4 w-60">WORK FIELDS</th>
-                                                    <th className="p-4 w-60">SPECIALIZED FIELD</th>
-                                                    <th className="p-4 w-48">DISCIPLINE</th>
-                                                    <th className="p-4 w-36 text-center">ACTION</th>
+                                                    <th className="p-4 w-12">NO</th>
+                                                    <th className="p-4 w-[16%]">CV FILE NAME</th>
+                                                    <th className="p-4 w-[12%]">CANDIDATE NAME</th>
+                                                    <th className="p-4 w-[10%]">EMAIL</th>
+                                                    <th className="p-4 w-[8%]">PHONE</th>
+                                                    <th className="p-4 w-[5%]">EXP</th>
+                                                    <th className="p-4 w-[12%]">EDUCATION</th>
+                                                    <th className="p-4 w-[12%]">WORK FIELDS</th>
+                                                    <th className="p-4 w-[12%]">SPECIALIZED FIELD</th>
+                                                    <th className="p-4 w-[12%]">DISCIPLINE</th>
+                                                    <th className="p-4 w-28 text-center">ACTION</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50 italic-none">
@@ -410,23 +414,35 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
                                                         <td className="p-4">
                                                             <div className="flex items-center gap-3 text-slate-600" title={cv.fileName}>
                                                                 <FileText className="w-4 h-4 shrink-0 text-slate-400" />
-                                                                <span className="truncate block font-black text-slate-600 text-xs uppercase tracking-tight">{cv.fileName}</span>
+                                                                <span className="whitespace-normal break-words font-black text-slate-600 text-[11px] uppercase tracking-tight leading-tight">{cv.fileName}</span>
                                                             </div>
                                                         </td>
                                                         <td className="p-4">
-                                                            <span className="font-black text-slate-900 border-b border-dashed border-slate-200">{cv.candidateName}</span>
+                                                            <span className="font-black text-[11px] text-slate-900 border-b border-dashed border-slate-200">{cv.candidateName}</span>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            {cv.email ? (
+                                                               <a href={`mailto:${cv.email}`} className="text-[11px] font-bold text-blue-600 hover:text-blue-800 underline block truncate max-w-[150px]" title={cv.email}>
+                                                                   {cv.email}
+                                                               </a>
+                                                            ) : <span className="text-[11px] text-slate-400">---</span>}
+                                                        </td>
+                                                        <td className="p-4">
+                                                            {cv.phone ? (
+                                                               <span className="text-[11px] font-bold text-slate-600 whitespace-nowrap">{cv.phone}</span>
+                                                            ) : <span className="text-[11px] text-slate-400">---</span>}
                                                         </td>
                                                         <td className="p-4">
                                                             <span className="font-bold text-slate-600 tabular-nums bg-slate-50 px-2 py-1 rounded-md border border-slate-100">{cv.yearsExp}</span>
                                                         </td>
                                                         <td className="p-4">
-                                                            <span className="text-xs font-bold text-slate-500 border-b border-dotted border-slate-300" title={cv.education}>{cv.education || '---'}</span>
+                                                            <span className="text-[11px] leading-tight font-bold text-slate-500 block break-words border-b border-dotted border-slate-300 min-w-[100px]" title={cv.education}>{cv.education || '---'}</span>
                                                         </td>
                                                         <td className="p-4">
-                                                            <span className="text-xs font-bold text-slate-500 border-b border-dotted border-slate-300" title={cv.workFields}>{cv.workFields || '---'}</span>
+                                                            <span className="text-[11px] leading-tight font-bold text-slate-500 block break-words border-b border-dotted border-slate-300 min-w-[100px]" title={cv.workFields}>{cv.workFields || '---'}</span>
                                                         </td>
                                                         <td className="p-4">
-                                                            <span className="text-xs font-bold text-slate-500 border-b border-dotted border-slate-300" title={cv.specializedField}>{cv.specializedField || '---'}</span>
+                                                            <span className="text-[11px] leading-tight font-bold text-slate-500 block break-words border-b border-dotted border-slate-300 min-w-[100px]" title={cv.specializedField}>{cv.specializedField || '---'}</span>
                                                         </td>
                                                         <td className="p-4">
                                                             <Badge variant="secondary" className="text-[9px] font-black uppercase bg-cyan-50 text-cyan-800 border-cyan-100/50 px-3 py-1 rounded-lg shadow-sm">{cv.discipline}</Badge>

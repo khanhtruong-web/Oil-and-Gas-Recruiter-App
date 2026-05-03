@@ -210,12 +210,20 @@ export const Settings = () => {
     };
 
     const handleUpdateDiscipline = async (discId: string, field: 'name' | 'keywords' | 'description', value: string) => {
+        if (field === 'name') {
+            const isDuplicate = disciplineDetails.some(d => d.id !== discId && d.name.toLowerCase() === value.trim().toLowerCase());
+            if (isDuplicate) {
+                toast.error('Discipline name already exists');
+                return;
+            }
+        }
+        
         const updatedList = disciplineDetails.map(d => {
             if (d.id === discId) {
                 if (field === 'keywords') {
                     return { ...d, keywords: value.split(',').map(k => k.trim()).filter(k => k) };
                 }
-                return { ...d, [field]: value };
+                return { ...d, [field]: value.trim() };
             }
             return d;
         });

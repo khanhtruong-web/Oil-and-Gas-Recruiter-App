@@ -1480,6 +1480,26 @@ const MainContent = () => {
         }
     };
 
+    const updateCandidateDiscipline = async (id: string, discipline: string) => {
+        if (!['Admin', 'Editor', 'Recruiter'].includes(profile?.role || '')) {
+            toast.error('You do not have permission to update candidate discipline');
+            return;
+        }
+        try {
+            const cand = candidates.find(x => x.id === id);
+            if (!cand) return;
+            
+            await updateDoc(doc(db, 'candidates', id), {
+                discipline: discipline,
+                updatedAt: serverTimestamp()
+            });
+            await logActivity(`Updated discipline to [${discipline}] for: ${cand?.candidateName}`);
+            toast.success('Discipline updated');
+        } catch (err: any) {
+            handleFirestoreError(err, OperationType.UPDATE, `candidates/${id}`);
+        }
+    };
+
     const deleteCandidate = async (id: string) => {
         if (!['Admin', 'Editor', 'Recruiter'].includes(profile?.role || '')) {
             toast.error('You do not have permission to delete candidates');
@@ -1585,7 +1605,7 @@ const MainContent = () => {
         <div className={activeTab === 'templates' ? 'block h-full' : 'hidden'}><CompanyTemplates candidates={activeCandidates} /></div>
         <div className={activeTab === 'ai' ? 'block h-full' : 'hidden'}><AITools candidates={activeCandidates} /></div>
         <div className={activeTab === 'search' ? 'block h-full' : 'hidden'}><SmartSearch candidates={activeCandidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} /></div>
-        <div className={activeTab === 'personnel' ? 'block h-full' : 'hidden'}><PersonnelDirectory candidates={candidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} onEmptyTrash={emptyTrash} /></div>
+        <div className={activeTab === 'personnel' ? 'block h-full' : 'hidden'}><PersonnelDirectory candidates={candidates} onStatusChange={updateCandidateStatus} onDisciplineChange={updateCandidateDiscipline} onDelete={deleteCandidate} onEmptyTrash={emptyTrash} /></div>
         <div className={activeTab === 'reports' ? 'block h-full' : 'hidden'}><ReportsView candidates={activeCandidates} /></div>
         <div className={activeTab === 'settings' ? 'block h-full' : 'hidden'}><Settings /></div>
       </div>

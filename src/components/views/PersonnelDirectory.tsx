@@ -6,30 +6,42 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Candidate, CandidateStatus } from '../../types';
-import { Users, Trash2, Download, Eye, ArchiveRestore, HardDrive } from 'lucide-react';
+import { Users, Trash2, Download, Eye, ArchiveRestore, HardDrive, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDisciplines } from '../../hooks/useDisciplines';
 
 export const PersonnelDirectory = ({ 
     candidates, 
     onStatusChange, 
+    onDisciplineChange,
     onDelete,
     onEmptyTrash 
 }: { 
     candidates: Candidate[], 
     onStatusChange: (id: string, st: CandidateStatus) => void,
+    onDisciplineChange?: (id: string, discipline: string) => void,
     onDelete: (id: string) => void,
     onEmptyTrash?: () => void
 }) => {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const [showDeleted, setShowDeleted] = useState(false);
+    const [viewTab, setViewTab] = useState<'active' | 'rejected' | 'trash'>('active');
+    const { disciplineDetails } = useDisciplines();
     
     const filteredList: Candidate[] = candidates.filter(c => {
         const cs = c.currentStatus?.toLowerCase() || (c as any).status?.toLowerCase();
-        return showDeleted ? cs === 'deleted' : cs !== 'deleted';
+        
+        if (viewTab === 'trash') {
+            return cs === 'deleted';
+        } else if (viewTab === 'rejected') {
+            return cs === 'rejected';
+        } else {
+            // View active targets everything not deleted and not rejected
+            return cs !== 'deleted' && cs !== 'rejected';
+        }
     });
-    const displayList = [...filteredList].reverse();
+    const displayList = [...filteredList];
 
     const toggleSelectAll = () => {
         if (selectedIds.length === displayList.length) setSelectedIds([]);
@@ -41,6 +53,7 @@ export const PersonnelDirectory = ({
     };
 
     const handleBulkDelete = () => {
+        if (!confirm('Are you sure you want to delete these records?')) return;
         selectedIds.forEach(id => onDelete(id));
         setSelectedIds([]);
         toast.info('Records deleted');
@@ -50,6 +63,10 @@ export const PersonnelDirectory = ({
         selectedIds.forEach(id => onStatusChange(id, st));
         setSelectedIds([]);
         toast.success(`Updated status to ${st}`);
+    };
+
+    const handleRowDisciplineChange = (id: string, newDiscipline: string) => {
+        if (onDisciplineChange) onDisciplineChange(id, newDiscipline);
     };
 
     const handleExportExcel = () => {
@@ -63,6 +80,7 @@ export const PersonnelDirectory = ({
             'Name': c.candidateName,
             'Discipline': c.discipline,
             'Experience': c.yearsExp,
+            'Education': c.education,
             'Industries': c.workFields,
             'Specialization': c.specializedField,
             'Email': c.email,
@@ -94,13 +112,14 @@ export const PersonnelDirectory = ({
                     <CardDescription className="text-slate-500 font-semibold uppercase text-[9px] tracking-widest mt-1">Master list of all candidates with status tracking</CardDescription>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Tabs defaultValue="active" onValueChange={(val) => setShowDeleted(val === 'trash')} className="w-auto">
+                    <Tabs value={viewTab} onValueChange={(val) => setViewTab(val as any)} className="w-auto">
                         <TabsList className="bg-slate-100 p-1">
                             <TabsTrigger value="active" className="font-bold text-[10px] uppercase tracking-wider px-3 h-7">Active</TabsTrigger>
+                            <TabsTrigger value="rejected" className="font-bold text-[10px] uppercase tracking-wider px-3 h-7">Rejected</TabsTrigger>
                             <TabsTrigger value="trash" className="font-bold text-[10px] uppercase tracking-wider px-3 h-7">Trash</TabsTrigger>
                         </TabsList>
                     </Tabs>
-                    {showDeleted && onEmptyTrash && (
+                    {viewTab === 'trash' && onEmptyTrash && (
                         <Button variant="outline" onClick={onEmptyTrash} className="font-bold text-xs uppercase tracking-wider text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 rounded-lg h-9">
                             <HardDrive className="w-4 h-4 mr-2" />
                             Empty Trash
@@ -145,12 +164,16 @@ export const PersonnelDirectory = ({
                                         onCheckedChange={toggleSelectAll}
                                     />
                                 </th>
-                                <th className="p-4">Name</th>
-                                <th className="p-4">Discipline</th>
-                                <th className="p-4">Experience</th>
-                                <th className="p-4">Industries</th>
-                                <th className="p-4">Status</th>
-                                <th className="p-4 text-center">Actions</th>
+                                <th className="p-4 w-[16%]">NAME</th>
+                                <th className="p-4 w-[10%]">EMAIL</th>
+                                <th className="p-4 w-[10%]">PHONE</th>
+                                <th className="p-4 w-[5%]">EXP</th>
+                                <th className="p-4 w-[12%]">EDUCATION</th>
+                                <th className="p-4 w-[12%]">INDUSTRIES</th>
+                                <th className="p-4 w-[12%]">SPECIALIZED FIELD</th>
+                                <th className="p-4 w-[12%]">DISCIPLINE</th>
+                                <th className="p-4 w-[8%]">STATUS</th>
+                                <th className="p-4 w-24 text-center">ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -164,17 +187,49 @@ export const PersonnelDirectory = ({
                                     </td>
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-lg bg-[#6366f1] text-white flex items-center justify-center font-bold text-xs">
+                                            <div className="w-8 h-8 rounded-lg bg-[#6366f1] text-white flex shrink-0 items-center justify-center font-bold text-[10px]">
                                                 {getInitials(c.candidateName)}
                                             </div>
-                                            <span className="font-bold text-slate-800">{c.candidateName}</span>
+                                            <span className="font-bold text-slate-800 text-[11px] leading-tight break-words whitespace-normal inline-block">{c.candidateName}</span>
                                         </div>
                                     </td>
                                     <td className="p-4">
-                                        <Badge variant="outline" className="text-[10px] bg-white border-slate-200 uppercase font-bold text-slate-600 px-3 py-1 rounded-full">{c.discipline}</Badge>
+                                        {c.email ? (
+                                            <a href={`mailto:${c.email}`} className="text-[11px] font-bold text-blue-600 hover:text-blue-800 underline block truncate max-w-[150px]" title={c.email}>
+                                                {c.email}
+                                            </a>
+                                        ) : <span className="text-[11px] text-slate-400">---</span>}
                                     </td>
-                                    <td className="p-4 text-slate-600 font-medium">{c.yearsExp} yrs</td>
-                                    <td className="p-4 text-slate-600 max-w-[150px] truncate" title={c.workFields || 'N/A'}>{c.workFields || 'N/A'}</td>
+                                    <td className="p-4">
+                                        {c.phone ? (
+                                            <span className="text-[11px] font-bold text-slate-600 whitespace-nowrap">{c.phone}</span>
+                                        ) : <span className="text-[11px] text-slate-400">---</span>}
+                                    </td>
+                                    <td className="p-4 text-slate-600 font-bold text-[11px] tabular-nums">{c.yearsExp}</td>
+                                    <td className="p-4">
+                                        <span className="text-[11px] font-bold text-slate-500 whitespace-normal break-words min-w-[100px] block border-b border-dotted border-slate-300" title={c.education}>{c.education || '---'}</span>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className="text-[11px] font-bold text-slate-500 whitespace-normal break-words min-w-[100px] block border-b border-dotted border-slate-300" title={c.workFields}>{c.workFields || '---'}</span>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className="text-[11px] font-bold text-slate-500 whitespace-normal break-words min-w-[100px] block border-b border-dotted border-slate-300" title={c.specializedField}>{c.specializedField || '---'}</span>
+                                    </td>
+                                    <td className="p-4">
+                                        <Select 
+                                            value={c.discipline || ''} 
+                                            onValueChange={(val) => handleRowDisciplineChange(c.id!, val)}
+                                        >
+                                            <SelectTrigger className="h-7 px-2 text-[9px] font-bold uppercase w-full max-w-[180px] min-w-[100px] rounded-full text-slate-600 bg-white border-slate-200">
+                                                <SelectValue placeholder="Select discipline">{c.discipline}</SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {disciplineDetails.map((d: any) => (
+                                                    <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </td>
                                     <td className="p-4">
                                         <Select 
                                             value={c.currentStatus} 
