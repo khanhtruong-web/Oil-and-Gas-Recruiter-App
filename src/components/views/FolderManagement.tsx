@@ -11,6 +11,7 @@ import { listDriveFiles } from '../../services/driveService';
 import { Loader2, FolderTree, Database, FileText, AlertCircle, Info, CloudUpload, HardDrive, CheckCircle2, Folder, Network, Archive } from 'lucide-react';
 import { useDisciplines } from '../../hooks/useDisciplines';
 import { toast } from 'sonner';
+import { getSafeDisciplineFolderName } from '../../lib/drive-utils';
 import { handleFirestoreError, OperationType } from '../../lib/firestore-error';
 
 export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) => {
@@ -69,6 +70,7 @@ export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) =>
         if (!rootId) return;
         
         let token = activeToken;
+
         if (!token && forceAuth && authorizeDrive) {
            try {
                token = await authorizeDrive();
@@ -132,7 +134,7 @@ export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) =>
             setSyncProgress({ current: 0, total: DISCIPLINE_NAMES.length });
             
             for (let i = 0; i < DISCIPLINE_NAMES.length; i++) {
-                const name = `CVs_${DISCIPLINE_NAMES[i].replace(/[^a-zA-Z0-9]/g, '_')}`;
+                const name = getSafeDisciplineFolderName(DISCIPLINE_NAMES[i]);
                 setSyncProgress({ current: i + 1, total: DISCIPLINE_NAMES.length });
                 await findOrCreateFolder(name, currentRootId);
             }
@@ -155,6 +157,47 @@ export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) =>
         }
     };
 
+    const syncDataToSheets = async () => {
+        if (!settings?.googleSheetId) {
+            return toast.error('Please configure your Google Sheet ID in Settings first.');
+        }
+        
+        setSyncStatus('syncing');
+        setSyncError(null);
+        try {
+            const { syncToGoogleSheets } = await import('../../services/sheetService');
+            
+            toast.loading('Syncing discipline sheets...', { id: 'sheet-sync' });
+            
+            for (let i = 0; i < DISCIPLINE_NAMES.length; i++) {
+                const disc = DISCIPLINE_NAMES[i];
+                const safeDiscipline = disc.replace(/[^a-zA-Z0-9_ -]/g, '_');
+                const tabName = `CVs_${safeDiscipline}`;
+                
+                const candidatesForDisc = candidates.filter(c => c.discipline === disc && c.currentStatus?.toLowerCase() !== 'deleted');
+                
+                // Keep it fast, we can just send everything
+                for (const c of candidatesForDisc) {
+                    await syncToGoogleSheets(settings.googleSheetId, [
+                        c.candidateName || 'N/A',
+                        c.discipline || 'N/A',
+                        c.yearsExp || '0',
+                        c.workFields || 'N/A',
+                        c.currentStatus || 'New',
+                        '' // Actions
+                    ], tabName);
+                }
+            }
+            
+            toast.success('Successfully synced all candidates to Google Sheets', { id: 'sheet-sync' });
+            setSyncStatus('success');
+        } catch (e: any) {
+             console.error('Sheet sync failed', e);
+             toast.error('Sheet sync failed: ' + e.message, { id: 'sheet-sync' });
+             setSyncStatus('error');
+        }
+    };
+
     useEffect(() => {
         if (rootId) {
             fetchFiles();
@@ -173,14 +216,25 @@ export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) =>
                     </h2>
                     <p className="text-sm text-slate-500 mt-1">Google Drive folder structure for CV organization</p>
                 </div>
-                <Button 
-                    className="bg-slate-900 text-white hover:bg-slate-800 rounded-xl px-5"
-                    onClick={syncDisciplinesToDrive}
-                    disabled={syncStatus === 'syncing' || !activeToken || !rootId}
-                >
-                    <CloudUpload className="w-4 h-4 mr-2" />
-                    Create on Drive
-                </Button>
+                <div className="flex gap-2">
+                    <Button 
+                        variant="outline"
+                        className="rounded-xl px-5 border-slate-200"
+                        onClick={syncDataToSheets}
+                        disabled={syncStatus === 'syncing' || !settings?.googleSheetId}
+                    >
+                        <Database className="w-4 h-4 mr-2 text-emerald-500" />
+                        Sync to Sheets
+                    </Button>
+                    <Button 
+                        className="bg-slate-900 text-white hover:bg-slate-800 rounded-xl px-5"
+                        onClick={syncDisciplinesToDrive}
+                        disabled={syncStatus === 'syncing' || !activeToken || !rootId}
+                    >
+                        <CloudUpload className="w-4 h-4 mr-2" />
+                        Create on Drive
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -214,9 +268,9 @@ export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) =>
                                     </div>
                                     <div className="pl-6 pt-1 space-y-1 border-l-2 border-slate-100 ml-2">
                                         {DISCIPLINE_NAMES.map((disc, idx) => {
-                                            const fName = `CVs_${disc.replace(/[^a-zA-Z0-9_ -]/g, '')}`;
+                                            const fName = getSafeDisciplineFolderName(disc);
                                             const isFound = files.some(f => f.name === fName);
-                                            const folderCandidates = candidates.filter(c => c.discipline === disc && c.driveFileId && c.currentStatus !== 'Deleted');
+                                            const folderCandidates = candidates.filter(c => c.discipline === disc && c.driveFileId && c.currentStatus?.toLowerCase() !== 'deleted');
                                             return (
                                                 <div key={idx} className="space-y-1">
                                                     <div className="flex items-center gap-2 text-[0.85rem] text-slate-600 py-1">

@@ -23,7 +23,11 @@ const PRESET_TEMPLATES: CompanyTemplate[] = [
     { id: 'standard', name: 'Standard Format', color: '#64748b', accent: '#475569', logo: '📄', country: 'Global' }
 ];
 
-export const CompanyTemplates = ({ candidates }: { candidates: Candidate[] }) => {
+export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Candidate[] }) => {
+    const candidates = React.useMemo(() => rawCandidates.filter(c => {
+        const cs = c.currentStatus?.toLowerCase() || (c as any).status?.toLowerCase();
+        return cs !== 'deleted';
+    }), [rawCandidates]);
     const { user } = useAuth();
     const [selectedTemplate, setSelectedTemplate] = useState<CompanyTemplate>(PRESET_TEMPLATES[5]);
     const [customTemplates, setCustomTemplates] = useState<CompanyTemplate[]>([]);
@@ -78,7 +82,9 @@ export const CompanyTemplates = ({ candidates }: { candidates: Candidate[] }) =>
         if (!cv?.rawText) return toast.error('No raw text available for this candidate.');
         
         const vars = getTemplateVariables(selectedTemplate.fileBase64);
-        if (vars.length === 0) return toast.warning('No variables found in template to extract.');
+        if (vars.length === 0) {
+            return toast.warning('No {Variables} found in template. Please add placeholders like {Name}, {Experience} into your Word document before uploading.', { duration: 8000 });
+        }
 
         setProcessingAI(true);
         try {
@@ -237,6 +243,16 @@ export const CompanyTemplates = ({ candidates }: { candidates: Candidate[] }) =>
                         accept=".docx" 
                         onChange={handleFileUpload} 
                     />
+                </div>
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                    <strong>How to use Custom Templates:</strong>
+                    <p className="mt-1">
+                        To correctly map an applicant's data, your Word document must contain curly braces as placeholders (e.g. <code>{'{CandidateName}'}</code>, <code>{'{YearsOfExperience}'}</code>, <code>{'{Education}'}</code>). Our AI will automatically find these tags and format the CV while <strong>100% retaining your original tables, fonts, and styling</strong>.
+                    </p>
                 </div>
             </div>
 

@@ -229,6 +229,52 @@ async function startServer() {
     }
   });
 
+  // Helper to find or create a folder with escaping and logging
+  async function findOrCreateFolderInternal(token: string, name: string, parentId?: string) {
+    const safeName = name.replace(/'/g, "\\'");
+    console.log(`[Drive] Searching for folder: "${name}" (safe: "${safeName}") in parent: ${parentId || 'root'}`);
+    
+    const query = `mimeType='application/vnd.google-apps.folder' and name='${safeName}' and trashed=false${parentId ? ` and '${parentId}' in parents` : ''}`;
+    
+    // Attempt search
+    let searchData = await callGoogleApi(
+        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)&spaces=drive`,
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (searchData.files && searchData.files.length > 0) {
+        console.log(`[Drive] Found existing folder: "${name}" -> ${searchData.files[0].id}`);
+        return searchData.files[0].id;
+    }
+
+    // Try a second search after a tiny delay to account for indexing lag if it was JUST created by another concurrent process
+    await new Promise(r => setTimeout(r, 500));
+    searchData = await callGoogleApi(
+        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)&spaces=drive`,
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (searchData.files && searchData.files.length > 0) {
+        console.log(`[Drive] Found existing folder (after retry): "${name}" -> ${searchData.files[0].id}`);
+        return searchData.files[0].id;
+    }
+
+    console.log(`[Drive] Creating new folder: "${name}" in parent: ${parentId || 'root'}`);
+    const createData = await callGoogleApi(
+        'https://www.googleapis.com/drive/v3/files',
+        {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name,
+                mimeType: 'application/vnd.google-apps.folder',
+                parents: parentId ? [parentId] : undefined
+            })
+        }
+    );
+    console.log(`[Drive] Created new folder successfully: ${createData.id}`);
+    return createData.id;
+  }
+
   app.post("/api/drive/findOrCreateFolder", async (req, res) => {
     try {
       const token = extractToken(req);
@@ -236,31 +282,8 @@ async function startServer() {
       parentId = extractId(parentId);
       if (!token || !name) return res.status(400).json({ error: "Missing token or name" });
 
-      const query = `mimeType='application/vnd.google-apps.folder' and name='${name}' and trashed=false${parentId ? ` and '${parentId}' in parents` : ''}`;
-      
-      const searchData = await callGoogleApi(
-        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)&spaces=drive`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (searchData.files && searchData.files.length > 0) {
-        return res.json({ id: searchData.files[0].id });
-      }
-
-      // Create new
-      const createData = await callGoogleApi(
-        'https://www.googleapis.com/drive/v3/files',
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            mimeType: 'application/vnd.google-apps.folder',
-            parents: parentId ? [parentId] : undefined
-          })
-        }
-      );
-      res.json({ id: createData.id });
+      const id = await findOrCreateFolderInternal(token, name, parentId);
+      res.json({ id });
     } catch (error: any) {
       res.status(error.status || 500).json({ error: error.message || error });
     }
@@ -402,47 +425,11 @@ async function startServer() {
 
         if (fileId && driveRootFolderId) {
             // Find or create discipline folder
-            const safeName = (discipline || 'Uncategorized').replace(/'/g, "\\'");
-            const query = `'${driveRootFolderId}' in parents and name = '${safeName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-            const searchRes = await callGoogleApi(
-                `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id)&spaces=drive`,
-                { headers: { Authorization: `Bearer ${driveToken}` } }
-            );
-            
-            let disciplineFolderId;
-            if (searchRes.files && searchRes.files.length > 0) {
-                disciplineFolderId = searchRes.files[0].id;
-            } else {
-                const createRes = await callGoogleApi('https://www.googleapis.com/drive/v3/files', {
-                    method: 'POST',
-                    headers: { Authorization: `Bearer ${driveToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: discipline || 'Uncategorized',
-                        mimeType: 'application/vnd.google-apps.folder',
-                        parents: [driveRootFolderId]
-                    })
-                });
-                disciplineFolderId = createRes.id;
-            }
+            const disciplineFolderId = await findOrCreateFolderInternal(driveToken, discipline || 'Uncategorized', driveRootFolderId);
 
             // Create Contracts and Projects subfolders
             for (const sub of ['Contracts', 'Projects']) {
-                const subQuery = `'${disciplineFolderId}' in parents and name = '${sub}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-                const subSearch = await callGoogleApi(
-                    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(subQuery)}&fields=files(id)`,
-                    { headers: { Authorization: `Bearer ${driveToken}` } }
-                );
-                if (!subSearch.files || subSearch.files.length === 0) {
-                    await callGoogleApi('https://www.googleapis.com/drive/v3/files', {
-                        method: 'POST',
-                        headers: { Authorization: `Bearer ${driveToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            name: sub,
-                            mimeType: 'application/vnd.google-apps.folder',
-                            parents: [disciplineFolderId]
-                        })
-                    });
-                }
+                await findOrCreateFolderInternal(driveToken, sub, disciplineFolderId);
             }
 
             // Patch File

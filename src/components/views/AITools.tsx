@@ -5,8 +5,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Candidate } from '../../types';
 import { geminiService } from '../../services/geminiService';
 import { toast } from 'sonner';
-import { Loader2, Bot, CheckCircle2, Award, TrendingUp } from 'lucide-react';
+import { Loader2, Bot, CheckCircle2, Award, TrendingUp, Download } from 'lucide-react';
 import Markdown from 'react-markdown';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
+import { saveAs } from 'file-saver';
 
 export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
     const [selectedId, setSelectedId] = useState<string>('');
@@ -14,6 +16,73 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
     const [activeTool, setActiveTool] = useState<'spellcheck' | 'review' | 'suggest'>('spellcheck');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<string>('');
+
+    const exportReport = async () => {
+        if (!result) return toast.error('No result to export');
+        
+        try {
+            toast.loading('Preparing report...', { id: 'export-report' });
+            
+            const lines = result.split('\n');
+            const children = [];
+            
+            const toolName = tools.find(t => t.id === activeTool)?.label || 'AI Analysis';
+            
+            children.push(
+                new Paragraph({
+                    children: [new TextRun({ text: "CONFIDENTIAL REPORT", bold: true, size: 24, color: "555555" })],
+                    spacing: { after: 200 },
+                })
+            );
+            
+            children.push(
+                new Paragraph({
+                    children: [new TextRun({ text: `${toolName} Result`, bold: true, size: 36, color: "000000" })],
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: { after: 400 },
+                })
+            );
+            
+            for (const line of lines) {
+                if (!line.trim()) {
+                    children.push(new Paragraph({ spacing: { after: 150 } }));
+                    continue;
+                }
+                
+                // Keep it simple for markdown handling
+                let cleanedLine = line.replace(/^\s*-\s+/, '• '); // List items
+                
+                if (cleanedLine.startsWith('# ')) {
+                    children.push(new Paragraph({ children: [new TextRun({ text: cleanedLine.replace('# ', ''), bold: true, size: 32, color: "111111" })], spacing: { before: 200, after: 100 } }));
+                } else if (cleanedLine.startsWith('## ')) {
+                    children.push(new Paragraph({ children: [new TextRun({ text: cleanedLine.replace('## ', ''), bold: true, size: 28, color: "222222" })], spacing: { before: 200, after: 100 } }));
+                } else if (cleanedLine.startsWith('### ')) {
+                    children.push(new Paragraph({ children: [new TextRun({ text: cleanedLine.replace('### ', ''), bold: true, size: 24, color: "333333" })], spacing: { before: 200, after: 100 } }));
+                } else {
+                    // Try to parse out **bold** text inline
+                    const parts = cleanedLine.split(/(\*\*.*?\*\*)/g);
+                    const runs = parts.filter(p => !!p).map(part => {
+                        if (part.startsWith('**') && part.endsWith('**')) {
+                            return new TextRun({ text: part.replace(/\*\*/g, ''), bold: true, size: 22 });
+                        }
+                        let cleanText = part.replace(/\*/g, '');
+                        return new TextRun({ text: cleanText, size: 22 });
+                    });
+                    
+                    children.push(new Paragraph({ children: runs, spacing: { after: 100 } }));
+                }
+            }
+            
+            const doc = new Document({ sections: [{ properties: {}, children }] });
+            const blob = await Packer.toBlob(doc);
+            
+            saveAs(blob, `AI_Report_${toolName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.docx`);
+            toast.success('Report exported for managers.', { id: 'export-report' });
+        } catch (e) {
+            console.error("Export error", e);
+            toast.error('Failed to export report.', { id: 'export-report' });
+        }
+    };
 
     const runAnalysis = async () => {
         let cv = null;
@@ -158,8 +227,15 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
                                 <p className="font-bold text-xs uppercase tracking-widest">Scanning Document...</p>
                             </div>
                         ) : result ? (
-                            <div className="prose prose-sm prose-slate max-w-none prose-p:leading-relaxed prose-headings:font-black bg-white rounded-lg shadow-sm border border-slate-100 p-6">
-                                <Markdown>{result}</Markdown>
+                            <div className="relative group">
+                                <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button size="sm" onClick={exportReport} className="shadow-lg bg-indigo-600 hover:bg-indigo-700 font-bold">
+                                        <Download className="w-4 h-4 mr-2" /> Export Word Report
+                                    </Button>
+                                </div>
+                                <div className="prose prose-sm prose-slate max-w-none prose-p:leading-relaxed prose-headings:font-black bg-white rounded-lg shadow-sm border border-slate-100 p-6 md:p-8 relative">
+                                    <Markdown>{result}</Markdown>
+                                </div>
                             </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center h-full pt-16 text-slate-300 italic">

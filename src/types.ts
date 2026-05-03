@@ -12,6 +12,7 @@ export interface Candidate {
   specializedField?: string;
   workFields?: string;
   currentStatus: CandidateStatus;
+  certifications?: string;
   
   // AI Metadata
   aiScore?: number;

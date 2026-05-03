@@ -29,7 +29,12 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
 
-  const filteredCandidates = candidates.filter(c => {
+    const filteredCandidatesFromProps = candidates.filter(c => {
+        const cs = c.currentStatus?.toLowerCase() || (c as any).status?.toLowerCase();
+        return cs !== 'deleted';
+    });
+
+    const filteredCandidates = filteredCandidatesFromProps.filter(c => {
     if (filterDisc && c.discipline !== filterDisc) return false;
     if (filterStatus && c.currentStatus?.toLowerCase() !== filterStatus.toLowerCase()) return false;
     if (filterFrom && c.addedAt && c.addedAt < filterFrom) return false;
@@ -383,7 +388,7 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
           <CardHeader className="pb-2">
             <CardTitle className="text-[13px] font-extrabold flex items-center gap-2 text-slate-900 border-b border-slate-50 pb-4">
                 <PieChart className="w-4 h-4 text-amber-500" />
-                Pipeline Status
+                Status Breakdown
             </CardTitle>
           </CardHeader>
           <CardContent>

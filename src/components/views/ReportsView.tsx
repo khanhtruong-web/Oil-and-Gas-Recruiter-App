@@ -126,7 +126,7 @@ export const ReportsView = ({ candidates }: { candidates: Candidate[] }) => {
                     <CardHeader>
                         <CardTitle className="text-lg font-black flex items-center gap-2">
                             <BarChart3 className="w-5 h-5 text-primary" />
-                            Pipeline Status
+                            Status Breakdown
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="h-[300px]">

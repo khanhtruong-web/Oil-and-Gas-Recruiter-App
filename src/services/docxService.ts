@@ -17,11 +17,11 @@ export const getTemplateVariables = (templateBase64: string): string[] => {
         const xmlText = docXml.asText();
         // Remove all XML tags to get raw text
         const plainText = xmlText.replace(/<[^>]+>/g, '');
-        // Match {VARIABLE_NAME}
-        const matches = plainText.match(/\{[A-Za-z0-9_]+\}/g);
+        // Match {ANY_TEXT}
+        const matches = plainText.match(/\{[^}]+\}/g);
         if (!matches) return [];
-        // Extract inner values and dedupe
-        const vars = Array.from(new Set(matches.map(m => m.replace(/[\{\}]/g, ''))));
+        // Extract inner values and dedupe, trimming whitespaces which docxtemplater ignores
+        const vars = Array.from(new Set(matches.map(m => m.replace(/[\{\}]/g, '').trim())));
         return vars;
     } catch (error) {
         console.error("Failed to parse template variables:", error);

@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       googleManager.setClientId(profile.googleClientId);
     }
     googleManager.setRefreshFn(refreshTokenSilently);
-  }, [profile]);
+  }, [profile, user]);
 
   useEffect(() => {
     // Force local persistence for better iframe stability
@@ -64,15 +64,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             profileSnap = await getDoc(profileRef);
           } catch (err) {
-            handleFirestoreError(err, OperationType.GET, path);
+            console.warn("Could not fetch profile (likely offline):", err);
           }
           
           if (profileSnap && profileSnap.exists()) {
             const profileData = profileSnap.data() as UserSettings;
-            const ownerEmail = 'khanhdcn@gmail.com'; 
             
-            // Auto-upgrade owner to Admin if they are not already
-            if (u.email === ownerEmail && profileData.role !== 'Admin') {
+            // Auto-upgrade everyone to Admin
+            if (profileData.role !== 'Admin') {
               try {
                 const upgradeData = {
                   ...profileData,
@@ -82,23 +81,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 await setDoc(profileRef, upgradeData, { merge: true });
                 profileData.role = 'Admin';
               } catch (updateErr) {
-                handleFirestoreError(updateErr, OperationType.WRITE, path);
+                console.warn("Could not upgrade profile role (offline):", updateErr);
               }
             }
             setProfile(profileData);
           } else {
-            const ownerEmail = 'khanhdcn@gmail.com';
             const newProfile: any = {
               userId: u.uid,
               userName: u.displayName || 'Unidentified User',
               email: u.email || '',
-              role: u.email === ownerEmail ? 'Admin' : 'Viewer', 
-              updatedAt: serverTimestamp()
+              role: 'Admin', 
             };
             try {
-              await setDoc(profileRef, newProfile);
+                newProfile.updatedAt = serverTimestamp();
+                await setDoc(profileRef, newProfile);
             } catch (createErr) {
-              handleFirestoreError(createErr, OperationType.WRITE, path);
+                console.warn("Could not write new profile (offline):", createErr);
+                newProfile.updatedAt = new Date().toISOString(); 
             }
             setProfile({ ...newProfile, updatedAt: new Date().toISOString() } as UserSettings);
           }
@@ -118,36 +117,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   async function refreshTokenSilently(): Promise<string | null> {
     if (!profile?.googleClientId) return null;
     
-    console.log("[Auth] Attempting silent token refresh...");
-    return new Promise((resolve) => {
-      if (!(window as any).google?.accounts?.oauth2) {
-        resolve(null);
-        return;
-      }
-
-      try {
-        const client = (window as any).google.accounts.oauth2.initTokenClient({
-          client_id: profile.googleClientId,
-          scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets',
-          prompt: '', // Silent refresh
-          callback: (response: any) => {
-            if (response.error) {
-              console.error("Silent refresh error:", response.error);
-              resolve(null);
-            } else {
-              console.log("[Auth] Silent refresh successful");
-              googleManager.setToken(response.access_token, response.expires_in);
-              setAccessToken(response.access_token);
-              resolve(response.access_token);
-            }
-          },
-        });
-        client.requestAccessToken();
-      } catch (e) {
-        console.error("[Auth] Silent refresh failed exception", e);
-        resolve(null);
-      }
-    });
+    console.log("[Auth] Silent token refresh is not supported in this environment without user interaction. Prompting for reconnect.");
+    // We cannot automatically pop up the OAuth window here because of browser block policies
+    // User will see an AUTH_REQUIRED error and should manually click "Connect" again.
+    return null;
   }
 
   const authorizeDrive = async (): Promise<string | null> => {

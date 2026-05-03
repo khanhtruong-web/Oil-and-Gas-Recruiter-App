@@ -107,9 +107,12 @@ export class GoogleWorkspaceManager {
         const waitTime = Math.max(0, timeToExpiry - refreshThreshold);
 
         if (waitTime > 0 && waitTime < 24 * 60 * 60 * 1000) {
+            // We cannot do silent background refreshes with GSI without a popup,
+            // so we'll just clear the token locally when it expires so the user
+            // is prompted to login again next time they make an API call.
             this._refreshTimer = setTimeout(() => {
-                this.refreshAccessToken();
-            }, waitTime);
+                this.logout();
+            }, waitTime + refreshThreshold); // logout at actual expiry time
         }
     }
 

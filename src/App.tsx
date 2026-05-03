@@ -21,7 +21,11 @@ import {
   Trash2,
   Search,
   BarChart3,
-  Clock
+  Clock,
+  Maximize,
+  Minimize,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -888,6 +892,30 @@ const MainContent = () => {
     const [activities, setActivities] = useState<ActivityLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [settings, setSettings] = useState<UserSettings | null>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                toast.error(`Error attempting to enable fullscreen mode: ${err.message}`);
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    };
+
+    const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
 
     useEffect(() => {
         if (!user) return;
@@ -1088,20 +1116,29 @@ const MainContent = () => {
                 return newObj;
             };
 
+            // Detect existing candidate to avoid duplicating if the user uploads the same CV
+            // This prevents "deleted" candidates from reappearing as duplicates
+            const existingMatch = candidates.find(existing => {
+                if (existing.email && c.email && existing.email.trim().toLowerCase() === c.email.trim().toLowerCase()) return true;
+                if (existing.phone && c.phone && existing.phone.replace(/\D/g, '') === c.phone.replace(/\D/g, '')) return true;
+                if (existing.candidateName && c.candidateName && existing.candidateName.toLowerCase().trim() === c.candidateName.toLowerCase().trim() && existing.discipline === c.discipline) return true;
+                return false;
+            });
+
             const docData = sanitizeObject({
                 ...c,
                 candidateName: c.candidateName || 'Candidate Result',
                 yearsExp: typeof c.yearsExp === 'number' ? c.yearsExp : (Number(c.yearsExp) || 0),
                 discipline: c.discipline || 'Uncategorized',
-                driveFileId: finalDriveId || null,
-                driveFileUrl: finalDriveUrl || null,
+                driveFileId: finalDriveId || (existingMatch?.driveFileId || null),
+                driveFileUrl: finalDriveUrl || (existingMatch?.driveFileUrl || null),
                 ownerId: user!.uid,
-                currentStatus: c.currentStatus || 'New',
-                addedAt: serverTimestamp(),
+                currentStatus: existingMatch ? existingMatch.currentStatus : (c.currentStatus || 'New'), // preserve 'Deleted' status if it was deleted!
+                addedAt: existingMatch ? (existingMatch.addedAt || serverTimestamp()) : serverTimestamp(),
                 updatedAt: serverTimestamp(),
-                email: c.email || '',
-                phone: c.phone || '',
-                rawText: c.rawText || ''
+                email: c.email || (existingMatch?.email || ''),
+                phone: c.phone || (existingMatch?.phone || ''),
+                rawText: c.rawText || (existingMatch?.rawText || '')
             });
             delete docData.id;
 
@@ -1114,16 +1151,64 @@ const MainContent = () => {
 
             console.log('--- SAVING EXPERT ---', docData);
             const path = 'candidates';
-            const docRef = await addDoc(collection(db, path), docData);
+            let docRefId = '';
+            
+            if (existingMatch && existingMatch.id) {
+                await updateDoc(doc(db, path, existingMatch.id), docData);
+                docRefId = existingMatch.id;
+            } else {
+                const docRef = await addDoc(collection(db, path), docData);
+                docRefId = docRef.id;
+            }
 
-            // Removed original "Google Sheets Backup_Experts" here to wait for Approve transaction
-
+            const sheetsDriveToken = accessToken || settings?.driveToken;
+            if (settings?.autoBackupEnabled && sheetsDriveToken && settings?.googleSheetId) {
+                const { syncToGoogleSheets } = await import('./services/sheetService');
+                const { addToSyncQueue } = await import('./services/offlineSyncService');
+                
+                // 1. Sync to CV Extraction log tab
+                const cvExtractionRow = [
+                    docRefId,
+                    c.fileName || '',
+                    c.candidateName || 'N/A',
+                    c.yearsExp || '0',
+                    c.education || 'N/A',
+                    c.workFields || 'N/A',
+                    c.specializedField || 'N/A',
+                    c.discipline || 'N/A',
+                    c.aiScore || '',
+                    new Date().toISOString()
+                ];
+                
+                // 2. Sync to Discipline-specific tab
+                const safeDiscipline = c.discipline ? c.discipline.replace(/[^a-zA-Z0-9_ -]/g, '_') : 'General';
+                const disciplineRow = [
+                    c.candidateName || 'N/A',
+                    c.discipline || 'N/A',
+                    c.yearsExp || '0',
+                    c.workFields || 'N/A',
+                    'New', // Default Status
+                    '' // Actions
+                ];
+                
+                if (!navigator.onLine) {
+                    addToSyncQueue({ type: 'SHEET_SYNC', payload: { sheetId: settings.googleSheetId, rowData: cvExtractionRow, tabName: 'CV_Extraction' } });
+                    addToSyncQueue({ type: 'SHEET_SYNC', payload: { sheetId: settings.googleSheetId, rowData: disciplineRow, tabName: `CVs_${safeDiscipline}` } });
+                } else {
+                    try {
+                        await syncToGoogleSheets(settings.googleSheetId, cvExtractionRow, 'CV_Extraction');
+                        await syncToGoogleSheets(settings.googleSheetId, disciplineRow, `CVs_${safeDiscipline}`);
+                    } catch (e) {
+                         console.error('Failed to sync sheets', e);
+                    }
+                }
+            }
 
             // Data Protection: Internal Backup
             const backupPath = 'backups';
             try {
                 await addDoc(collection(db, backupPath), {
-                    originalId: docRef.id,
+                    originalId: docRefId,
                     candidateName: c.candidateName,
                     data: sanitizeObject(c),
                     timestamp: new Date().toISOString(),
@@ -1220,6 +1305,7 @@ const MainContent = () => {
             
             await updateDoc(doc(db, 'candidates', id), {
                 currentStatus: status,
+                status: status,
                 updatedAt: serverTimestamp()
             });
 
@@ -1310,7 +1396,7 @@ const MainContent = () => {
                 return;
             }
             
-            if (cand?.currentStatus === 'Deleted') {
+            if (cand?.currentStatus?.toLowerCase() === 'deleted' || (cand as any)?.status?.toLowerCase() === 'deleted') {
                 // Permanent delete
                 await deleteDoc(doc(db, 'candidates', id));
                 await logActivity(`Permanently deleted expert record: ${cand?.candidateName}`);
@@ -1318,7 +1404,8 @@ const MainContent = () => {
             } else {
                 // Soft delete by updating status
                 await updateDoc(doc(db, 'candidates', id), {
-                    currentStatus: 'Deleted',
+                    currentStatus: 'deleted',
+                    status: 'deleted',
                     deletedAt: serverTimestamp(),
                     deletedBy: user!.uid
                 });
@@ -1337,7 +1424,52 @@ const MainContent = () => {
         }
     };
 
-    const activeCandidates = candidates.filter(c => c.currentStatus !== 'Deleted');
+    const emptyTrash = async () => {
+        if (!['Admin', 'Editor'].includes(profile?.role || '')) {
+            toast.error('You do not have permission to empty trash');
+            return;
+        }
+
+        const trashCandidates = candidates.filter(c => {
+            const cs = (c.currentStatus || (c as any).status || '').toLowerCase();
+            return cs === 'deleted';
+        });
+
+        if (trashCandidates.length === 0) {
+            toast.info('Trash is already empty');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to permanently delete all ${trashCandidates.length} records in the trash? This cannot be undone.`)) {
+            return;
+        }
+
+        let deletedCount = 0;
+        let failedCount = 0;
+
+        for (const cand of trashCandidates) {
+            try {
+                await deleteDoc(doc(db, 'candidates', cand.id));
+                deletedCount++;
+            } catch (err) {
+                console.error(`Failed to delete candidate ${cand.id}:`, err);
+                failedCount++;
+            }
+        }
+
+        if (deletedCount > 0) {
+            toast.success(`Permanently deleted ${deletedCount} expert records`);
+            await logActivity(`Emptied trash: permanently deleted ${deletedCount} records`);
+        }
+        if (failedCount > 0) {
+            toast.error(`Failed to delete ${failedCount} records`);
+        }
+    };
+
+    const activeCandidates = candidates.filter(c => {
+        const cs = c.currentStatus?.toLowerCase() || (c as any).status?.toLowerCase();
+        return cs !== 'deleted';
+    });
 
     if (loading) {
         return (
@@ -1356,7 +1488,7 @@ const MainContent = () => {
       case 'templates': return <CompanyTemplates candidates={activeCandidates} />;
       case 'ai': return <AITools candidates={activeCandidates} />;
       case 'search': return <SmartSearch candidates={activeCandidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} />;
-      case 'personnel': return <PersonnelDirectory candidates={candidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} />;
+      case 'personnel': return <PersonnelDirectory candidates={candidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} onEmptyTrash={emptyTrash} />;
       case 'reports': return <ReportsView candidates={activeCandidates} />;
       case 'settings': return <Settings />;
       default: return <Dashboard candidates={activeCandidates} activities={activities} />;
@@ -1392,37 +1524,45 @@ const MainContent = () => {
 
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-[280px] bg-slate-900 text-white flex flex-col shrink-0">
-        <div className="p-6 pb-2">
-          <div className="flex items-center gap-3 p-3 bg-white/5 rounded-2xl mb-8">
-            <div className="p-2 bg-primary rounded-xl">
-              <Users className="w-6 h-6 text-white" />
+      {/* Sidebar Navigation */}
+      <aside className={`${sidebarCollapsed ? 'w-20' : 'w-72'} bg-slate-900 text-white flex flex-col shrink-0 transition-all duration-300 ease-in-out relative group/sidebar`}>
+        <div className={`p-6 border-b border-white/5 flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+          {!sidebarCollapsed && (
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary rounded-xl ring-4 ring-primary/10">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-lg font-black tracking-tighter leading-none">Expertise</p>
+                <p className="text-[10px] uppercase font-bold text-primary tracking-widest mt-1">Manager V2</p>
+              </div>
             </div>
-            <div>
-              <p className="text-lg font-black tracking-tighter leading-none">Expertise</p>
-              <p className="text-[10px] uppercase font-bold text-primary tracking-widest mt-1">Manager V2</p>
-            </div>
-          </div>
+          )}
+          {sidebarCollapsed && (
+             <div className="p-2 bg-primary rounded-xl ring-4 ring-primary/10">
+                <Users className="w-6 h-6 text-white" />
+             </div>
+          )}
         </div>
 
-        <nav className="flex-1 px-4 space-y-6 overflow-y-auto">
+        <nav className="flex-1 px-4 py-8 space-y-8 overflow-y-auto custom-scrollbar">
           {menuSections.map(section => (
-            <div key={section.title} className="space-y-1">
-              <p className="px-4 text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">{section.title}</p>
+            <div key={section.title} className="space-y-2">
+              {!sidebarCollapsed && <p className="px-4 text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">{section.title}</p>}
               {section.items.map(item => (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm group ${
                     activeTab === item.id 
                     ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]' 
                     : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
+                  title={sidebarCollapsed ? item.label : ''}
                 >
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
-                  {item.label}
-                  {item.id === 'personnel' && candidates.length > 0 && (
+                  <item.icon className={`w-5 h-5 flex-shrink-0 ${activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
+                  {!sidebarCollapsed && item.label}
+                  {!sidebarCollapsed && item.id === 'personnel' && candidates.length > 0 && (
                     <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-black">
                       {candidates.length}
                     </span>
@@ -1433,35 +1573,64 @@ const MainContent = () => {
           ))}
         </nav>
 
-        <div className="p-4 mt-auto">
-          <div className="p-4 bg-white/5 rounded-2xl space-y-4">
-             <div className="flex items-center gap-3">
+        {/* Toggle Button */}
+        <button 
+          onClick={toggleSidebar}
+          className="absolute -right-3 top-24 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all z-[60] text-white"
+        >
+          {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+
+        <div className="p-4 border-t border-white/5 bg-black/20">
+          <div className={`p-4 bg-white/5 rounded-2xl space-y-4 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
+             <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
                 <div className="relative">
-                    <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden">
-                        {user?.photoURL && <img src={user.photoURL} alt="User" />}
+                    <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden border border-white/10">
+                        {user?.photoURL && <img src={user.photoURL} alt="User" referrerPolicy="no-referrer" />}
                     </div>
                     {/* Sync Dot */}
                     <SyncDot />
                 </div>
-                <div className="flex-1 overflow-hidden">
-                    <p className="text-[10px] font-bold text-slate-500 truncate">{user?.email}</p>
-                    <p className="text-xs font-black truncate">{user?.displayName}</p>
-                </div>
+                {!sidebarCollapsed && (
+                    <div className="flex-1 overflow-hidden">
+                        <p className="text-[10px] font-bold text-slate-500 truncate">{user?.email}</p>
+                        <p className="text-xs font-black truncate">{user?.displayName}</p>
+                    </div>
+                )}
              </div>
-             <Button 
-                variant="ghost" 
-                className="w-full justify-start text-slate-400 hover:text-white hover:bg-white/5 p-0 h-auto" 
-                onClick={logout}
-             >
-               <LogOut className="w-4 h-4 mr-2" />
-               Sign Out
-             </Button>
+             {!sidebarCollapsed && (
+                 <Button 
+                    variant="ghost" 
+                    className="w-full justify-start text-slate-400 hover:text-white hover:bg-white/5 p-0 h-auto" 
+                    onClick={logout}
+                 >
+                   <LogOut className="w-4 h-4 mr-2" />
+                   Sign Out
+                 </Button>
+             )}
           </div>
         </div>
       </aside>
 
       {/* Main Area */}
       <main className="flex-1 overflow-y-auto p-1/2 md:p-8">
+        {/* Fullscreen Toggle Button */}
+        <div className="fixed top-4 right-4 z-[100]">
+            <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleFullscreen}
+                className="bg-white/90 backdrop-blur-sm border-slate-200 shadow-md hover:shadow-lg transition-all rounded-full w-10 h-10 flex items-center justify-center group"
+                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            >
+                {isFullscreen ? (
+                    <Minimize className="w-5 h-5 text-slate-600 group-hover:scale-110 transition-transform" />
+                ) : (
+                    <Maximize className="w-5 h-5 text-slate-600 group-hover:scale-110 transition-transform" />
+                )}
+            </Button>
+        </div>
+
         <div className="max-w-[1400px] mx-auto space-y-8">
             <header className="flex justify-between items-center">
                 <div>
@@ -1481,7 +1650,7 @@ const MainContent = () => {
         </div>
       </main>
       <Toaster position="bottom-right" richColors />
-      <ChatBox candidates={candidates} />
+      <ChatBox candidates={activeCandidates} />
     </div>
   );
 };

@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Candidate, CandidateStatus } from '../../types';
-import { Users, Trash2, Download, Eye, ArchiveRestore } from 'lucide-react';
+import { Users, Trash2, Download, Eye, ArchiveRestore, HardDrive } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,16 +14,21 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 export const PersonnelDirectory = ({ 
     candidates, 
     onStatusChange, 
-    onDelete 
+    onDelete,
+    onEmptyTrash 
 }: { 
     candidates: Candidate[], 
     onStatusChange: (id: string, st: CandidateStatus) => void,
-    onDelete: (id: string) => void
+    onDelete: (id: string) => void,
+    onEmptyTrash?: () => void
 }) => {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [showDeleted, setShowDeleted] = useState(false);
     
-    const filteredList: Candidate[] = candidates.filter(c => showDeleted ? c.currentStatus === 'Deleted' : c.currentStatus !== 'Deleted');
+    const filteredList: Candidate[] = candidates.filter(c => {
+        const cs = c.currentStatus?.toLowerCase() || (c as any).status?.toLowerCase();
+        return showDeleted ? cs === 'deleted' : cs !== 'deleted';
+    });
     const displayList = [...filteredList].reverse();
 
     const toggleSelectAll = () => {
@@ -95,6 +100,12 @@ export const PersonnelDirectory = ({
                             <TabsTrigger value="trash" className="font-bold text-[10px] uppercase tracking-wider px-3 h-7">Trash</TabsTrigger>
                         </TabsList>
                     </Tabs>
+                    {showDeleted && onEmptyTrash && (
+                        <Button variant="outline" onClick={onEmptyTrash} className="font-bold text-xs uppercase tracking-wider text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 rounded-lg h-9">
+                            <HardDrive className="w-4 h-4 mr-2" />
+                            Empty Trash
+                        </Button>
+                    )}
                     <Button onClick={handleExportExcel} className="font-bold text-xs uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg h-9">
                         <Download className="w-4 h-4 mr-2" />
                         Export
@@ -183,7 +194,7 @@ export const PersonnelDirectory = ({
                                     </td>
                                     <td className="p-4 text-center">
                                         <div className="flex items-center justify-center gap-1">
-                                            {(c.currentStatus as string) === 'Deleted' ? (
+                                            {c.currentStatus?.toLowerCase() === 'deleted' ? (
                                                 <button 
                                                     className="w-8 h-8 rounded-full hover:bg-emerald-50 text-emerald-400 hover:text-emerald-500 inline-flex items-center justify-center transition-colors"
                                                     onClick={() => {
@@ -232,7 +243,7 @@ export const PersonnelDirectory = ({
                                                                         ${c.currentStatus === 'Hired' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : ''}
                                                                         ${c.currentStatus === 'Shortlisted' ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : ''}
                                                                         ${c.currentStatus === 'Rejected' ? 'bg-red-50 text-red-600 border-red-200' : ''}
-                                                                        ${(c.currentStatus as string) === 'Deleted' ? 'bg-orange-50 text-orange-600 border-orange-200' : ''}
+                                                                        ${c.currentStatus?.toLowerCase() === 'deleted' ? 'bg-orange-50 text-orange-600 border-orange-200' : ''}
                                                                         ${c.currentStatus === 'New' || c.currentStatus === 'Reviewing' ? 'bg-slate-50 text-slate-600 border-slate-200' : ''}
                                                                     `}>
                                                                         {c.currentStatus}
@@ -256,12 +267,12 @@ export const PersonnelDirectory = ({
                                             <button 
                                                 className="w-8 h-8 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 inline-flex items-center justify-center transition-colors"
                                                 onClick={() => {
-                                                    const isTrash = (c.currentStatus as string) === 'Deleted';
+                                                    const isTrash = c.currentStatus?.toLowerCase() === 'deleted';
                                                     if(confirm(isTrash ? 'Permanently remove this record?' : 'Move this record to trash?')) {
                                                         onDelete(c.id!);
                                                     }
                                                 }}
-                                                title={(c.currentStatus as string) === 'Deleted' ? 'Purge' : 'Delete'}
+                                                title={c.currentStatus?.toLowerCase() === 'deleted' ? 'Purge' : 'Delete'}
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
