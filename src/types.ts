@@ -42,6 +42,14 @@ export interface Candidate {
   deletedBy?: string;
 }
 
+export interface SystemConfig {
+  driveSourceFolderId?: string;
+  driveRootFolderId?: string;
+  googleSheetId?: string;
+  googleClientId?: string;
+  autoBackupEnabled?: boolean;
+}
+
 export interface UserSettings {
   userId: string;
   userName?: string;

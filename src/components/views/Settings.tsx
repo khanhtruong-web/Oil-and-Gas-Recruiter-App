@@ -94,13 +94,37 @@ export const Settings = () => {
 
     useEffect(() => {
         if (!user) return;
-        return onSnapshot(doc(db, 'settings', user.uid), (d) => {
-            if (d.exists()) setSettings(d.data() as UserSettings);
+        
+        let currentUserSettings: any = null;
+        let currentSystemConfig: any = null;
+
+        const updateSettingsData = () => {
+            if (!currentUserSettings) return;
+            setSettings({ ...currentUserSettings, ...currentSystemConfig } as UserSettings);
+        };
+
+        const unsubUser = onSnapshot(doc(db, 'settings', user.uid), (d) => {
+            if (d.exists()) {
+                currentUserSettings = d.data();
+                updateSettingsData();
+            }
             setLoading(false);
         }, (error) => {
             handleFirestoreError(error, OperationType.GET, 'settings');
             setLoading(false);
         });
+
+        const unsubSystem = onSnapshot(doc(db, 'settings', 'system_config'), (d) => {
+            if (d.exists()) {
+                currentSystemConfig = d.data();
+                updateSettingsData();
+            }
+        }, (error) => {});
+
+        return () => {
+            unsubUser();
+            unsubSystem();
+        };
     }, [user]);
 
     const handleSave = async (e: React.FormEvent) => {
@@ -124,8 +148,7 @@ export const Settings = () => {
         const sheetId = extractId((e.currentTarget as any).sheetId.value);
         const googleClientId = (e.currentTarget as any).googleClientId.value?.trim();
         try {
-            await setDoc(doc(db, 'settings', user!.uid), {
-                userId: user!.uid,
+            await setDoc(doc(db, 'settings', 'system_config'), {
                 driveSourceFolderId: driveSourceId || settings?.driveSourceFolderId || '',
                 driveRootFolderId: driveId,
                 googleSheetId: sheetId,
@@ -133,9 +156,9 @@ export const Settings = () => {
                 autoBackupEnabled: settings?.autoBackupEnabled || false,
                 updatedAt: serverTimestamp()
             }, { merge: true });
-            toast.success('Workspace configurations updated');
+            toast.success('Workspace configurations updated globally');
         } catch (err) {
-            handleFirestoreError(err, OperationType.WRITE, 'settings');
+            handleFirestoreError(err, OperationType.WRITE, 'settings/system_config');
         }
     };
 
@@ -431,222 +454,198 @@ export const Settings = () => {
                                                 Connect Google Account
                                             </Button>
                                         </div>
-                                        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-lg text-[0.75rem]">
-                                            <strong className="block mb-2 text-amber-900 border-b border-amber-200 pb-1">⚠️ CRITICAL: Fix redirect_uri_mismatch (Step-by-Step)</strong>
-                                            
-                                            <div className="space-y-3 mt-2">
-                                                <div>
-                                                    <p className="font-bold mb-1">1. For "Sign in with Google" (Firebase Auth):</p>
-                                                    <p className="mb-1 italic">Add this to <strong>Authorized redirect URIs</strong> in GCP Console:</p>
-                                                    <div className="font-mono bg-white border border-amber-200 p-2 rounded select-all break-all text-blue-700">https://gen-lang-client-0648025381.firebaseapp.com/__/auth/handler</div>
-                                                </div>
-
-                                                <div>
-                                                    <p className="font-bold mb-1">2. For "Connect Google Account" (Manual Drive API):</p>
-                                                    <p className="mb-1 italic">Add this to <strong>Authorized redirect URIs</strong> in GCP Console:</p>
-                                                    <div className="font-mono bg-white border border-amber-200 p-2 rounded select-all break-all text-blue-700">{typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : ''}</div>
-                                                </div>
-
-                                                <div>
-                                                    <p className="font-bold mb-1">3. For both (origins):</p>
-                                                    <p className="mb-1 italic">Add these to <strong>Authorized JavaScript origins</strong>:</p>
-                                                    <div className="space-y-1">
-                                                        <div className="font-mono bg-white border border-amber-200 p-1 px-2 rounded select-all break-all text-blue-700">{typeof window !== 'undefined' ? window.location.origin : ''}</div>
-                                                        <div className="font-mono bg-white border border-amber-200 p-1 px-2 rounded select-all break-all text-blue-700">https://gen-lang-client-0648025381.firebaseapp.com</div>
-                                                        <div className="font-mono bg-red-50 border border-red-200 p-1 px-2 rounded select-all break-all text-red-700 font-bold">https://ai.studio</div>
-                                                    </div>
+                                        
+                                         {profile?.role === 'Admin' ? (
+                                        <>
+                                            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-lg text-[0.75rem]">
+                                                <strong className="block mb-2 text-emerald-900 border-b border-emerald-200 pb-1">✓ Google Workspace Authentication setup complete</strong>
+                                                <div className="space-y-1 mt-2">
+                                                    <p>Drive and Sheets integration is now fully managed by your core login identity system.</p>
+                                                    <p>If an employee encounters "Authentication required", they only need to click "Connect Google Account" above to refresh their tokens!</p>
                                                 </div>
                                             </div>
-
-                                            <div className="mt-4 text-[0.7rem] bg-amber-100/50 p-2 rounded border border-amber-200 text-amber-900">
-                                                <strong>Still failing?</strong> Click <strong>"error details"</strong> on the Google error 400 page. It will say exactly which URI is missing. Copy that EXACT URI (e.g. including storagerelay://) and add it to the <strong>Authorized redirect URIs</strong> list.
+                                        </>
+                                        ) : (
+                                            <div className="text-[0.8rem] text-slate-500 mt-2 bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+                                                Administrator has configured Google Workspace integration.<br />
+                                                If you encounter Drive errors, please click the <strong>Connect Google Account</strong> button above to grant necessary access for your session.
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
                                     
-                                    <div className="space-y-1">
-                                        <label className="text-[0.72rem] font-bold text-slate-500 uppercase tracking-wider block">Google OAuth Client ID</label>
-                                        <Input 
-                                            name="googleClientId" 
-                                            placeholder="Paste Google Client ID here..." 
-                                            value={settings?.googleClientId || ''}
-                                            onChange={(e) => setSettings({...settings, googleClientId: e.target.value})}
-                                            className="h-9 text-[0.85rem] border-slate-200 bg-slate-50"
-                                        />
-                                        <p className="text-[10px] text-slate-400 mt-1 italic italic-none">
-                                            Required for Drive and Sheets synchronization.
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <label className="text-[0.72rem] font-bold text-slate-500 uppercase tracking-wider block">Drive Source Folder ID</label>
-                                        <div className="flex gap-2">
-                                        <Input 
-                                            name="driveSourceId" 
-                                            placeholder="Folder ID for incoming unsorted CVs" 
-                                            value={settings?.driveSourceFolderId || ''}
-                                            onChange={(e) => setSettings({...settings, driveSourceFolderId: e.target.value})}
-                                            className="h-9 text-[0.85rem] border-slate-200 bg-slate-50 flex-1"
-                                        />
-                                        <Button type="button" variant="outline" size="sm" className="h-9 px-3 shrink-0 text-slate-600" onClick={() => window.open(`https://drive.google.com/drive/folders/${settings?.driveSourceFolderId}`, '_blank')}>
-                                            <FolderOpen className="w-4 h-4" />
-                                        </Button>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <label className="text-[0.72rem] font-bold text-slate-500 uppercase tracking-wider block">Drive Root Folder ID (Destination)</label>
-                                        <div className="flex gap-2">
-                                        <Input 
-                                            name="driveId" 
-                                            placeholder="Paste Folder ID here (e.g. 1A2b3C4d...)" 
-                                            value={settings?.driveRootFolderId || ''}
-                                            onChange={(e) => setSettings({...settings, driveRootFolderId: e.target.value})}
-                                            className="h-9 text-[0.85rem] border-slate-200 bg-slate-50 flex-1"
-                                        />
-                                        <Button type="button" variant="outline" size="sm" className="h-9 px-3 shrink-0 text-slate-600" onClick={() => window.open(`https://drive.google.com/drive/folders/${settings?.driveRootFolderId}`, '_blank')}>
-                                            <FolderOpen className="w-4 h-4" />
-                                        </Button>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-[0.72rem] font-bold text-slate-500 uppercase tracking-wider block">Google Sheets Target ID</label>
+                                    {profile?.role === 'Admin' && (
+                                    <>
+                                        <div className="space-y-1">
+                                            <label className="text-[0.72rem] font-bold text-slate-500 uppercase tracking-wider block">Drive Source Folder ID</label>
                                             <div className="flex gap-2">
-                                                <Button 
-                                                    variant="ghost" 
-                                                    type="button"
-                                                    size="sm" 
-                                                    className="h-6 text-[0.65rem] px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                                                    onClick={async () => {
-                                                        if (!settings?.googleSheetId) return toast.error('Please enter a Google Sheet ID first');
-                                                        
-                                                        let token = accessToken;
-                                                        if (!token) {
-                                                            toast.info("Authentication required. Please sign in with Google.");
+                                            <Input 
+                                                name="driveSourceId" 
+                                                placeholder="Folder ID for incoming unsorted CVs" 
+                                                value={settings?.driveSourceFolderId || ''}
+                                                onChange={(e) => setSettings({...settings, driveSourceFolderId: e.target.value})}
+                                                className="h-9 text-[0.85rem] border-slate-200 bg-slate-50 flex-1"
+                                            />
+                                            <Button type="button" variant="outline" size="sm" className="h-9 px-3 shrink-0 text-slate-600" onClick={() => window.open(`https://drive.google.com/drive/folders/${settings?.driveSourceFolderId}`, '_blank')}>
+                                                <FolderOpen className="w-4 h-4" />
+                                            </Button>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <label className="text-[0.72rem] font-bold text-slate-500 uppercase tracking-wider block">Drive Root Folder ID (Destination)</label>
+                                            <div className="flex gap-2">
+                                            <Input 
+                                                name="driveId" 
+                                                placeholder="Paste Folder ID here (e.g. 1A2b3C4d...)" 
+                                                value={settings?.driveRootFolderId || ''}
+                                                onChange={(e) => setSettings({...settings, driveRootFolderId: e.target.value})}
+                                                className="h-9 text-[0.85rem] border-slate-200 bg-slate-50 flex-1"
+                                            />
+                                            <Button type="button" variant="outline" size="sm" className="h-9 px-3 shrink-0 text-slate-600" onClick={() => window.open(`https://drive.google.com/drive/folders/${settings?.driveRootFolderId}`, '_blank')}>
+                                                <FolderOpen className="w-4 h-4" />
+                                            </Button>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-[0.72rem] font-bold text-slate-500 uppercase tracking-wider block">Google Sheets Target ID</label>
+                                                <div className="flex gap-2">
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        type="button"
+                                                        size="sm" 
+                                                        className="h-6 text-[0.65rem] px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                        onClick={async () => {
+                                                            if (!settings?.googleSheetId) return toast.error('Please enter a Google Sheet ID first');
+                                                            
+                                                            let token = accessToken;
+                                                            if (!token) {
+                                                                toast.info("Authentication required. Please sign in with Google.");
+                                                                try {
+                                                                    token = await authorizeDrive();
+                                                                } catch (e) {
+                                                                    return toast.error("Google authentication failed. Cannot test connection.");
+                                                                }
+                                                            }
+                                                            
+                                                            if (!token) return toast.error('Google authorization required for testing');
+
+                                                            toast.loading('Testing Connection...', { id: 'test-sheet' });
                                                             try {
-                                                                token = await authorizeDrive();
-                                                            } catch (e) {
-                                                                return toast.error("Google authentication failed. Cannot test connection.");
+                                                                const { syncToGoogleSheets } = await import('../../services/sheetService');
+                                                                // Try to append a test row
+                                                                await syncToGoogleSheets(
+                                                                    settings.googleSheetId, 
+                                                                    ['CONNECTION_TEST', user?.email || 'N/A', new Date().toISOString()],
+                                                                    'System_Test'
+                                                                );
+                                                                toast.success('Connection successful! Test row added to Sheet.', { id: 'test-sheet' });
+                                                            } catch (e: any) {
+                                                                console.error("Test failed", e);
+                                                                const errMsg = e.message || 'Connection failed';
+                                                                const gcpLink = errMsg.match(/https:\/\/console\.developers\.google\.com\/apis\/api\/sheets\.googleapis\.com\/overview\?project=\d+/)?.[0];
+                                                                
+                                                                if (gcpLink) {
+                                                                    toast.error('Google Sheets API is disabled', {
+                                                                        id: 'test-sheet',
+                                                                        description: 'You must enable it in Google Cloud Console before use.',
+                                                                        duration: 15000,
+                                                                        action: {
+                                                                            label: 'Enable Now',
+                                                                            onClick: () => window.open(gcpLink, '_blank')
+                                                                        }
+                                                                    });
+                                                                } else if (errMsg.includes('Google Sheet not found')) {
+                                                                    toast.error('Google Sheet not found', {
+                                                                        id: 'test-sheet',
+                                                                        description: 'Please check your Sheet Target ID.',
+                                                                        duration: 5000
+                                                                    });
+                                                                } else if (errMsg.includes('Authentication required')) {
+                                                                    toast.error('Authentication Error', { 
+                                                                        id: 'test-sheet', 
+                                                                        description: 'Session might have expired. Please try again to re-authenticate.',
+                                                                        duration: 5000
+                                                                    });
+                                                                } else {
+                                                                    toast.error(errMsg, { id: 'test-sheet', duration: 10000 });
+                                                                }
                                                             }
-                                                        }
-                                                        
-                                                        if (!token) return toast.error('Google authorization required for testing');
+                                                        }}
+                                                    >
+                                                        Test Connection
+                                                    </Button>
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        type="button"
+                                                        size="sm" 
+                                                        className="h-6 text-[0.65rem] px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                                                        onClick={async () => {
+                                                            toast.loading('Creating Google Sheet...', { id: 'create-sheet' });
+                                                            try {
+                                                                const { googleManager } = await import('../../services/GoogleWorkspaceManager');
+                                                                const response = await googleManager.callAPI('https://sheets.googleapis.com/v4/spreadsheets', {
+                                                                    method: 'POST',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json'
+                                                                    },
+                                                                    body: JSON.stringify({
+                                                                        properties: { title: 'OilGas_CV_Management_Database' },
+                                                                        sheets: [{ properties: { title: 'Approved_Candidates' } }]
+                                                                    })
+                                                                });
+                                                                
+                                                                const data = await response.json();
+                                                                setSettings(s => s ? ({ ...s, googleSheetId: data.spreadsheetId, autoBackupEnabled: true }) : null);
+                                                                toast.success('Sheet created and connected!', { id: 'create-sheet' });
+                                                            } catch (e: any) {
+                                                                console.error("Sheet creation failed", e);
+                                                                if (e.message?.includes('Authentication required')) {
+                                                                    toast.error('Authentication Required', {
+                                                                        id: 'create-sheet',
+                                                                        description: 'Please click "Connect Google Account" or sign in again to grant permissions.'
+                                                                    });
+                                                                    if (authorizeDrive) await authorizeDrive();
+                                                                } else {
+                                                                    toast.error('Creation failed: ' + e.message, { id: 'create-sheet' });
+                                                                }
+                                                            }
+                                                        }}
+                                                    >
+                                                        Auto-Create
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            <Input 
+                                                name="sheetId" 
+                                                placeholder="Paste Google Sheet ID here..." 
+                                                value={settings?.googleSheetId || ''}
+                                                onChange={(e) => setSettings(s => s ? ({...s, googleSheetId: e.target.value}) : null)}
+                                                className="h-9 text-[0.85rem] border-slate-200 bg-slate-50"
+                                            />
+                                        </div>
 
-                                                        toast.loading('Testing Connection...', { id: 'test-sheet' });
-                                                        try {
-                                                            const { syncToGoogleSheets } = await import('../../services/sheetService');
-                                                            // Try to append a test row
-                                                            await syncToGoogleSheets(
-                                                                settings.googleSheetId, 
-                                                                ['CONNECTION_TEST', user?.email || 'N/A', new Date().toISOString()],
-                                                                'System_Test'
-                                                            );
-                                                            toast.success('Connection successful! Test row added to Sheet.', { id: 'test-sheet' });
-                                                        } catch (e: any) {
-                                                            console.error("Test failed", e);
-                                                            const errMsg = e.message || 'Connection failed';
-                                                            const gcpLink = errMsg.match(/https:\/\/console\.developers\.google\.com\/apis\/api\/sheets\.googleapis\.com\/overview\?project=\d+/)?.[0];
-                                                            
-                                                            if (gcpLink) {
-                                                                toast.error('Google Sheets API is disabled', {
-                                                                    id: 'test-sheet',
-                                                                    description: 'You must enable it in Google Cloud Console before use.',
-                                                                    duration: 15000,
-                                                                    action: {
-                                                                        label: 'Enable Now',
-                                                                        onClick: () => window.open(gcpLink, '_blank')
-                                                                    }
-                                                                });
-                                                            } else if (errMsg.includes('Google Sheet not found')) {
-                                                                toast.error('Google Sheet not found', {
-                                                                    id: 'test-sheet',
-                                                                    description: 'Please check your Sheet Target ID.',
-                                                                    duration: 5000
-                                                                });
-                                                            } else if (errMsg.includes('Authentication required')) {
-                                                                toast.error('Authentication Error', { 
-                                                                    id: 'test-sheet', 
-                                                                    description: 'Session might have expired. Please try again to re-authenticate.',
-                                                                    duration: 5000
-                                                                });
-                                                            } else {
-                                                                toast.error(errMsg, { id: 'test-sheet', duration: 10000 });
-                                                            }
-                                                        }
-                                                    }}
-                                                >
-                                                    Test Connection
-                                                </Button>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    type="button"
-                                                    size="sm" 
-                                                    className="h-6 text-[0.65rem] px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                                                    onClick={async () => {
-                                                        toast.loading('Creating Google Sheet...', { id: 'create-sheet' });
-                                                        try {
-                                                            const { googleManager } = await import('../../services/GoogleWorkspaceManager');
-                                                            const response = await googleManager.callAPI('https://sheets.googleapis.com/v4/spreadsheets', {
-                                                                method: 'POST',
-                                                                headers: {
-                                                                    'Content-Type': 'application/json'
-                                                                },
-                                                                body: JSON.stringify({
-                                                                    properties: { title: 'OilGas_CV_Management_Database' },
-                                                                    sheets: [{ properties: { title: 'Approved_Candidates' } }]
-                                                                })
-                                                            });
-                                                            
-                                                            const data = await response.json();
-                                                            setSettings(s => s ? ({ ...s, googleSheetId: data.spreadsheetId, autoBackupEnabled: true }) : null);
-                                                            toast.success('Sheet created and connected!', { id: 'create-sheet' });
-                                                        } catch (e: any) {
-                                                            console.error("Sheet creation failed", e);
-                                                            if (e.message?.includes('Authentication required')) {
-                                                                toast.error('Authentication Required', {
-                                                                    id: 'create-sheet',
-                                                                    description: 'Please click "Connect Google Account" or sign in again to grant permissions.'
-                                                                });
-                                                                if (authorizeDrive) await authorizeDrive();
-                                                            } else {
-                                                                toast.error('Creation failed: ' + e.message, { id: 'create-sheet' });
-                                                            }
-                                                        }
-                                                    }}
-                                                >
-                                                    Auto-Create
-                                                </Button>
+                                        <div className="pt-2 flex items-center justify-between p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
+                                            <div className="flex flex-col">
+                                                <span className="text-[0.78rem] font-bold text-indigo-900">Auto Backup & Synchronization</span>
+                                                <span className="text-[0.65rem] text-indigo-600 font-medium">Export approved data to Google Sheets automatically</span>
+                                            </div>
+                                            <div 
+                                                className={`w-10 h-5 rounded-full p-1 cursor-pointer transition-colors ${settings?.autoBackupEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                                onClick={() => setSettings(s => s ? ({ ...s, autoBackupEnabled: !s.autoBackupEnabled }) : null)}
+                                            >
+                                                <div className={`w-3 h-3 bg-white rounded-full transition-transform ${settings?.autoBackupEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                                            </div>
                                         </div>
-                                    </div>
-                                    <Input 
-                                        name="sheetId" 
-                                            placeholder="Paste Google Sheet ID here..." 
-                                            value={settings?.googleSheetId || ''}
-                                            onChange={(e) => setSettings(s => s ? ({...s, googleSheetId: e.target.value}) : null)}
-                                            className="h-9 text-[0.85rem] border-slate-200 bg-slate-50"
-                                        />
-                                    </div>
-
-                                    <div className="pt-2 flex items-center justify-between p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
-                                        <div className="flex flex-col">
-                                            <span className="text-[0.78rem] font-bold text-indigo-900">Auto Backup & Synchronization</span>
-                                            <span className="text-[0.65rem] text-indigo-600 font-medium">Export approved data to Google Sheets automatically</span>
-                                        </div>
-                                        <div 
-                                            className={`w-10 h-5 rounded-full p-1 cursor-pointer transition-colors ${settings?.autoBackupEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                                            onClick={() => setSettings(s => s ? ({ ...s, autoBackupEnabled: !s.autoBackupEnabled }) : null)}
-                                        >
-                                            <div className={`w-3 h-3 bg-white rounded-full transition-transform ${settings?.autoBackupEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-                                        </div>
-                                    </div>
+                                        
+                                        <Button type="submit" className="w-full bg-gradient-to-br from-indigo-600 to-violet-600 font-bold h-10 mt-2 shadow-md hover:shadow-lg transition-all rounded-xl">
+                                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                                            Save Settings Securely
+                                        </Button>
+                                    </>
+                                    )}
                                 </div>
-
-                                <Button type="submit" className="w-full bg-gradient-to-br from-indigo-600 to-violet-600 font-bold h-10 mt-2 shadow-md hover:shadow-lg transition-all rounded-xl">
-                                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                                    Save Settings Securely
-                                </Button>
                             </form>
                         </CardContent>
                     </Card>

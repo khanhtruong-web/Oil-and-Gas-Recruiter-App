@@ -70,27 +70,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (profileSnap && profileSnap.exists()) {
             const profileData = profileSnap.data() as UserSettings;
             
-            // Auto-upgrade everyone to Admin
-            if (profileData.role !== 'Admin') {
-              try {
-                const upgradeData = {
-                  ...profileData,
-                  role: 'Admin',
-                  updatedAt: serverTimestamp()
-                };
-                await setDoc(profileRef, upgradeData, { merge: true });
-                profileData.role = 'Admin';
-              } catch (updateErr) {
-                console.warn("Could not upgrade profile role (offline):", updateErr);
+            // Fetch global system config to merge
+            try {
+              const sysConfigSnap = await getDoc(doc(db, 'settings', 'system_config'));
+              if (sysConfigSnap.exists()) {
+                const sysData = sysConfigSnap.data();
+                Object.assign(profileData, {
+                  driveRootFolderId: sysData.driveRootFolderId,
+                  driveSourceFolderId: sysData.driveSourceFolderId,
+                  googleSheetId: sysData.googleSheetId,
+                  googleClientId: sysData.googleClientId,
+                  autoBackupEnabled: sysData.autoBackupEnabled
+                });
               }
+            } catch (sysErr) {
+              console.warn("Could not fetch system_config:", sysErr);
             }
+
             setProfile(profileData);
           } else {
             const newProfile: any = {
               userId: u.uid,
               userName: u.displayName || 'Unidentified User',
               email: u.email || '',
-              role: 'Admin', 
+              role: u.email === 'khanhdcn@gmail.com' ? 'Admin' : 'Recruiter', 
             };
             try {
                 newProfile.updatedAt = serverTimestamp();
@@ -99,6 +102,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.warn("Could not write new profile (offline):", createErr);
                 newProfile.updatedAt = new Date().toISOString(); 
             }
+            
+            // Merge system config into new profile too
+            try {
+              const sysConfigSnap = await getDoc(doc(db, 'settings', 'system_config'));
+              if (sysConfigSnap.exists()) {
+                const sysData = sysConfigSnap.data();
+                Object.assign(newProfile, {
+                  driveRootFolderId: sysData.driveRootFolderId,
+                  driveSourceFolderId: sysData.driveSourceFolderId,
+                  googleSheetId: sysData.googleSheetId,
+                  googleClientId: sysData.googleClientId,
+                  autoBackupEnabled: sysData.autoBackupEnabled
+                });
+              }
+            } catch (sysErr) {
+              console.warn("Could not fetch system_config:", sysErr);
+            }
+
             setProfile({ ...newProfile, updatedAt: new Date().toISOString() } as UserSettings);
           }
         } else {
@@ -124,58 +145,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const authorizeDrive = async (): Promise<string | null> => {
-    return new Promise((resolve, reject) => {
-      if (!profile?.googleClientId) {
-        const err = new Error("Please configure Google OAuth Client ID in Settings first.");
-        toast.error(err.message);
-        resolve(null);
-        return;
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/drive'); 
+      provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+      provider.setCustomParameters({ prompt: 'select_account' });
+      
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const token = credential?.accessToken;
+      
+      if (token) {
+        googleManager.setToken(token, 3500);
+        setAccessToken(token);
+        return token;
       }
-      try {
-        const clientId = profile.googleClientId;
-        const redirectUri = `${window.location.origin}/auth/callback`;
-        console.log("DEBUG: Using Google OAuth Redirect URI:", redirectUri);
-        console.log("IMPORTANT: Add this URL to your Google Cloud Console 'Authorized redirect URIs'");
-        
-        const scope = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets';
-        const params = new URLSearchParams({
-            client_id: clientId,
-            redirect_uri: redirectUri,
-            response_type: 'token',
-            scope: scope,
-            prompt: 'consent'
-        });
-        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-        
-        const popup = window.open(authUrl, 'oauth_popup', 'width=600,height=700');
-        if (!popup) {
-            toast.error("Popup blocked! Please allow popups or open in a new tab to connect your account.");
-            reject(new Error("Popup blocked"));
-            return;
-        }
-
-        const handleMessage = (event: MessageEvent) => {
-            if (!event.origin.endsWith('.run.app') && !event.origin.includes('localhost') && event.origin !== window.location.origin) {
-                return;
-            }
-            if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-                window.removeEventListener('message', handleMessage);
-                const { token, expiresIn } = event.data;
-                googleManager.setToken(token, expiresIn);
-                setAccessToken(token);
-                resolve(token);
-            } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
-                window.removeEventListener('message', handleMessage);
-                toast.error("Authentication failed: " + event.data.error);
-                reject(new Error(event.data.error));
-            }
-        };
-        window.addEventListener('message', handleMessage);
-      } catch (err) {
-        console.error("Failed to initialize Google Auth Popup", err);
-        reject(err);
+      return null;
+    } catch (err: any) {
+      console.error("Firebase re-authentication failed", err);
+      if (err.code === 'auth/popup-closed-by-user') {
+        toast.error("Login popup closed. Could not get Drive access.");
+      } else {
+        toast.error("Failed to connect Google Account: " + err.message);
       }
-    });
+      return null;
+    }
   };
 
   const signIn = async () => {

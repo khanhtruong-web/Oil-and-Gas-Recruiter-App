@@ -92,7 +92,9 @@ export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) =>
             setFiles(data);
             setSyncStatus('success');
         } catch (e: any) {
-            console.error(e);
+            if (!e.message?.includes('AUTH_REQUIRED')) {
+                 console.error(e);
+            }
             setSyncStatus('error');
             if (e.message?.includes('AUTH_REQUIRED')) {
                 setSyncError('Authentication Required. Please connect your Google account in Settings.');
@@ -142,7 +144,9 @@ export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) =>
             toast.success('All disciplines synchronized with Google Drive');
             await fetchFiles(true);
         } catch (e: any) {
-            console.error(e);
+            if (!e.message?.includes('AUTH_REQUIRED')) {
+                 console.error(e);
+            }
             if (e.message?.includes('AUTH_REQUIRED')) {
                 toast.error('Authentication Required', {
                     description: 'Please go to Settings and click "Connect Google Account".'
@@ -161,7 +165,21 @@ export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) =>
         if (!settings?.googleSheetId) {
             return toast.error('Please configure your Google Sheet ID in Settings first.');
         }
+
+        let token = activeToken;
+        if (!token && authorizeDrive) {
+            try {
+                toast.info("Authentication required. Requesting access...");
+                token = await authorizeDrive() || undefined;
+            } catch (e) {
+                return toast.error("Google authentication failed. Cannot sync.");
+            }
+        }
         
+        if (!token) {
+            return toast.error("Authentication required to sync data.");
+        }
+
         setSyncStatus('syncing');
         setSyncError(null);
         try {
@@ -192,8 +210,14 @@ export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) =>
             toast.success('Successfully synced all candidates to Google Sheets', { id: 'sheet-sync' });
             setSyncStatus('success');
         } catch (e: any) {
-             console.error('Sheet sync failed', e);
-             toast.error('Sheet sync failed: ' + e.message, { id: 'sheet-sync' });
+             if (!e.message?.includes('AUTH_REQUIRED')) {
+                 console.error('Sheet sync failed', e);
+             }
+             if (e.message?.includes('AUTH_REQUIRED')) {
+                 toast.error('Sync failed: Authentication required. Please reconnect your Google account.', { id: 'sheet-sync' });
+             } else {
+                 toast.error('Sheet sync failed: ' + e.message, { id: 'sheet-sync' });
+             }
              setSyncStatus('error');
         }
     };

@@ -74,9 +74,16 @@ export async function processSyncQueue() {
         }
       } catch (e: any) {
         console.error("[OfflineSync] Task failed:", e);
-        if (e.message?.includes('Google Sheet not found') || e.message?.includes('AUTH_REQUIRED')) {
-           console.warn("[OfflineSync] Task permanently failed due to auth/config. Removing from queue.");
+        if (e.message?.includes('Google Sheet not found')) {
+           console.warn("[OfflineSync] Task permanently failed due to config issue. Removing from queue.");
            removeFromSyncQueue(task.id);
+        } else if (e.message?.includes('AUTH_REQUIRED')) {
+           console.warn("[OfflineSync] Task failed due to auth. Keeping in queue for when user reconnects.");
+           // Dispatch event so UI can show a notification
+           if (typeof window !== 'undefined') {
+               window.dispatchEvent(new CustomEvent('auth-required'));
+           }
+           break;
         } else {
            break; 
         }

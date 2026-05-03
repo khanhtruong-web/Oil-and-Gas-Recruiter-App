@@ -55,7 +55,9 @@ export async function syncToGoogleSheets(sheetId?: string, values?: any[], sheet
     });
   } catch (err: any) {
     const errorMsg = err.message || JSON.stringify(err);
-    console.error(`[Sheets] Append failed for range "${range}":`, errorMsg);
+    if (!errorMsg.includes('AUTH_REQUIRED')) {
+        console.error(`[Sheets] Append failed for range "${range}":`, errorMsg);
+    }
     // If range not found, try creating the sheet. Google API returns 400 with "Unable to parse range" or generic 400 for INVALID_ARGUMENT if tab missing
     if (errorMsg.includes("Unable to parse range") || errorMsg.includes("400") || errorMsg.toLowerCase().includes("range") || errorMsg.includes("INVALID_ARGUMENT")) {
       try {

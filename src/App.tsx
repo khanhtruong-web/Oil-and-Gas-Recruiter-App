@@ -447,11 +447,37 @@ const ImportExpert = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Candidate>
 
   useEffect(() => {
     if (!user) return;
-    return onSnapshot(doc(db, 'settings', user.uid), (d) => {
-        if (d.exists()) setSettings(d.data() as UserSettings);
+    
+    let currentUserSettings: any = null;
+    let currentSystemConfig: any = null;
+
+    const updateSettingsData = () => {
+        if (!currentUserSettings) return;
+        setSettings({ ...currentUserSettings, ...currentSystemConfig } as UserSettings);
+    };
+
+    const unsubUser = onSnapshot(doc(db, 'settings', user.uid), (d) => {
+        if (d.exists()) {
+            currentUserSettings = d.data();
+            updateSettingsData();
+        }
     }, (error) => {
         handleFirestoreError(error, OperationType.GET, 'settings');
     });
+
+    const unsubSystem = onSnapshot(doc(db, 'settings', 'system_config'), (d) => {
+        if (d.exists()) {
+            currentSystemConfig = d.data();
+            updateSettingsData();
+        }
+    }, (error) => {
+        handleFirestoreError(error, OperationType.GET, 'settings/system_config');
+    });
+
+    return () => {
+        unsubUser();
+        unsubSystem();
+    };
   }, [user]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -926,6 +952,31 @@ const MainContent = () => {
     }, []);
 
     useEffect(() => {
+        const handleAuthRequired = () => {
+             toast.error('Google account connection required or expired.', {
+                 id: 'auth-required',
+                 duration: 10000,
+                 action: {
+                     label: 'Connect',
+                     onClick: async () => {
+                         try {
+                              if (authorizeDrive) {
+                                  await authorizeDrive();
+                                  toast.success("Connected Google services successfully.");
+                                  import('./services/offlineSyncService').then(m => m.processSyncQueue());
+                              }
+                         } catch (e) {
+                              toast.error("Connection failed.");
+                         }
+                     }
+                 }
+             });
+        };
+        window.addEventListener('auth-required', handleAuthRequired);
+        return () => window.removeEventListener('auth-required', handleAuthRequired);
+    }, [authorizeDrive]);
+
+    useEffect(() => {
         if (!user) return;
         return onSnapshot(doc(db, 'settings', user.uid), (d) => {
             if (d.exists()) setSettings(d.data() as UserSettings);
@@ -1206,8 +1257,15 @@ const MainContent = () => {
                     try {
                         await syncToGoogleSheets(settings.googleSheetId, cvExtractionRow, 'CV_Extraction');
                         await syncToGoogleSheets(settings.googleSheetId, disciplineRow, `CVs_${safeDiscipline}`);
-                    } catch (e) {
-                         console.error('Failed to sync sheets', e);
+                    } catch (e: any) {
+                         if (!e.message?.includes('AUTH_REQUIRED')) {
+                             console.error('Failed to sync sheets', e);
+                         }
+                         if (e.message?.includes('AUTH_REQUIRED') || e.message?.includes('NetworkError') || e.message?.includes('Failed to fetch')) {
+                             addToSyncQueue({ type: 'SHEET_SYNC', payload: { sheetId: settings.googleSheetId, rowData: cvExtractionRow, tabName: 'CV_Extraction' } });
+                             addToSyncQueue({ type: 'SHEET_SYNC', payload: { sheetId: settings.googleSheetId, rowData: disciplineRow, tabName: `CVs_${safeDiscipline}` } });
+                             toast.info('Record queued for offline sync');
+                         }
                     }
                 }
             }
@@ -1299,7 +1357,9 @@ const MainContent = () => {
                     
                     toast.success('CV moved to ' + (cand.discipline || 'Uncategorized') + ' folder', { id: 'drive-move' });
                 } catch (e: any) {
-                    console.error("Drive move failed", e);
+                    if (!e.message?.includes('AUTH_REQUIRED')) {
+                         console.error("Drive move failed", e);
+                    }
                     if (e.message?.includes('AUTH_REQUIRED')) {
                         toast.error('Google Authentication Required', { 
                             id: 'drive-move',
@@ -1348,16 +1408,12 @@ const MainContent = () => {
                             );
                             toast.success('Record safely backed up to Google Sheets');
                         } catch (e: any) {
-                            if (e.message?.includes('AUTH_REQUIRED')) {
-                                console.warn("[App] Google Sheets sync failed: Auth Required");
-                                // We don't toast here usually if it's a background auto-backup,
-                                // but we might want to inform if explicitly failed
-                            } else if (e.message.includes('NetworkError') || e.message.includes('Failed to fetch')) {
+                            if (e.message?.includes('AUTH_REQUIRED') || e.message?.includes('NetworkError') || e.message?.includes('Failed to fetch')) {
                                 addToSyncQueue({
                                     type: 'SHEET_SYNC',
                                     payload: { sheetId: settings.googleSheetId, rowData, tabName: 'Approved_Candidates' }
                                 });
-                                toast.info('Network error: Record queued for Google Sheets sync');
+                                toast.info('Record queued for offline sync');
                             } else if (e.message.includes('Google Sheets API is disabled')) {
                                 const gcpLink = e.message.match(/https:\/\/console\.developers\.google\.com\/apis\/api\/sheets\.googleapis\.com\/overview\?project=\d+/)?.[0];
                                 toast.error('Google Sheets API is disabled', {

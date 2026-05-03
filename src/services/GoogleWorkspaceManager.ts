@@ -124,6 +124,7 @@ export class GoogleWorkspaceManager {
 
         const token = await this.ensureValidToken();
         if (!token) {
+            if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('auth-required'));
             throw new Error("AUTH_REQUIRED: Authentication required for Google services. Please grant permission in Settings.");
         }
 
@@ -138,6 +139,8 @@ export class GoogleWorkspaceManager {
             if (freshToken) {
                 headers.set('Authorization', `Bearer ${freshToken}`);
                 response = await fetch(url, { ...options, headers });
+            } else {
+                if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('auth-required'));
             }
         }
 
