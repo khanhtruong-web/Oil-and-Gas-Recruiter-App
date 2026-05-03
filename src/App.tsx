@@ -930,10 +930,50 @@ const MainContent = () => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
     useEffect(() => {
-        if (profile?.geminiApiKey) {
+        if (!user) return;
+        let currentUserSettings: any = null;
+        let currentSystemConfig: any = null;
+
+        const updateSettingsData = () => {
+            if (!currentUserSettings) {
+                // If user settings haven't loaded yet, just use system config
+                setSettings({ ...currentSystemConfig } as UserSettings);
+                return;
+            }
+            setSettings({ ...currentUserSettings, ...currentSystemConfig } as UserSettings);
+        };
+
+        const unsubUser = onSnapshot(doc(db, 'settings', user.uid), (d) => {
+            if (d.exists()) {
+                currentUserSettings = d.data();
+                updateSettingsData();
+            }
+        }, (error) => {
+            handleFirestoreError(error, OperationType.GET, `settings/${user.uid}`);
+        });
+
+        const unsubSystem = onSnapshot(doc(db, 'settings', 'system_config'), (d) => {
+            if (d.exists()) {
+                currentSystemConfig = d.data();
+                updateSettingsData();
+            }
+        }, (error) => {});
+
+        return () => {
+            unsubUser();
+            unsubSystem();
+        };
+    }, [user]);
+
+    // Use settings?.geminiApiKey to update Gemini API Key dynamically
+    useEffect(() => {
+        if (settings?.geminiApiKey) {
+            console.log("Setting Gemini API key from settings.");
+            geminiService.setApiKey(settings.geminiApiKey);
+        } else if (profile?.geminiApiKey) {
             geminiService.setApiKey(profile.geminiApiKey);
         }
-    }, [profile?.geminiApiKey]);
+    }, [settings?.geminiApiKey, profile?.geminiApiKey]);
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -981,15 +1021,6 @@ const MainContent = () => {
         window.addEventListener('auth-required', handleAuthRequired);
         return () => window.removeEventListener('auth-required', handleAuthRequired);
     }, [authorizeDrive]);
-
-    useEffect(() => {
-        if (!user) return;
-        return onSnapshot(doc(db, 'settings', user.uid), (d) => {
-            if (d.exists()) setSettings(d.data() as UserSettings);
-        }, (error) => {
-            handleFirestoreError(error, OperationType.GET, `settings/${user.uid}`);
-        });
-    }, [user]);
 
     useEffect(() => {
         if (!user || !profile) return;
@@ -1337,23 +1368,16 @@ const MainContent = () => {
                     const safeFolderName = getSafeDisciplineFolderName(cand.discipline || 'Uncategorized');
                     const newFileName = getApprovedFileName(cand.candidateName, cand.discipline || 'Uncategorized', ext);
                     
-                    const response = await googleManager.callAPI(`/api/cvs/${id}/approve`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            fileId: cand.driveFileId,
-                            discipline: safeFolderName,
-                            driveRootFolderId: currentRootId,
-                            newName: newFileName
-                        })
-                    });
-
-                    if (!response.ok) {
-                        const err = await response.json().catch(() => null);
-                        throw new Error(err?.error || 'Unknown error');
-                    }
+                    const { findOrCreateFolder, moveFile, renameFile } = await import('./services/driveService');
+                    
+                    const disciplineFolderId = await findOrCreateFolder(safeFolderName, currentRootId);
+                    
+                    // Create subfolders
+                    await findOrCreateFolder('Contracts', disciplineFolderId);
+                    await findOrCreateFolder('Projects', disciplineFolderId);
+                    
+                    await renameFile(cand.driveFileId, newFileName);
+                    await moveFile(cand.driveFileId, disciplineFolderId);
                     
                     toast.success('CV moved to ' + (cand.discipline || 'Uncategorized') + ' folder', { id: 'drive-move' });
                 } catch (e: any) {

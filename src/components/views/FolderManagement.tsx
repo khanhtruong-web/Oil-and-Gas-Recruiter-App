@@ -34,19 +34,43 @@ export const FolderManagement = ({ candidates = [] }: { candidates?: any[] }) =>
 
     useEffect(() => {
         if (!user) return;
-        return onSnapshot(doc(db, 'settings', user.uid), (d) => {
+        
+        let currentUserSettings: any = null;
+        let currentSystemConfig: any = null;
+
+        const updateCombinedSettings = () => {
+             const merged = { ...currentUserSettings, ...currentSystemConfig };
+             setSettings(merged);
+             // Prefer system_config for global settings, fallback to user
+             if (merged.driveToken) setManualToken(merged.driveToken);
+             if (merged.driveSourceFolderId) setSourceId(merged.driveSourceFolderId);
+             if (merged.driveRootFolderId) setRootId(merged.driveRootFolderId);
+        };
+
+        const unsubUser = onSnapshot(doc(db, 'settings', user.uid), (d) => {
             if (d.exists()) {
-                const data = d.data() as UserSettings;
-                setSettings(data);
-                if (data.driveToken) setManualToken(data.driveToken);
-                if (data.driveSourceFolderId) setSourceId(data.driveSourceFolderId);
-                if (data.driveRootFolderId) setRootId(data.driveRootFolderId);
+                currentUserSettings = d.data();
+                updateCombinedSettings();
             }
             setLoading(false);
         }, (error) => {
             handleFirestoreError(error, OperationType.GET, 'settings');
             setLoading(false);
         });
+
+        const unsubSystem = onSnapshot(doc(db, 'settings', 'system_config'), (d) => {
+            if (d.exists()) {
+                currentSystemConfig = d.data();
+                updateCombinedSettings();
+            }
+        }, (error) => {
+            console.warn("Could not load system_config", error);
+        });
+
+        return () => {
+            unsubUser();
+            unsubSystem();
+        };
     }, [user]);
 
     const saveSettings = async () => {
