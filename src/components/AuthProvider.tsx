@@ -134,6 +134,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const clientId = profile.googleClientId;
         const redirectUri = `${window.location.origin}/auth/callback`;
+        console.log("DEBUG: Using Google OAuth Redirect URI:", redirectUri);
+        console.log("IMPORTANT: Add this URL to your Google Cloud Console 'Authorized redirect URIs'");
+        
         const scope = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets';
         const params = new URLSearchParams({
             client_id: clientId,
@@ -215,15 +218,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e: any) {
       console.error("Sign in error", e);
       if (e.code === 'auth/popup-closed-by-user') {
-        setError("Cửa sổ đăng nhập đã bị đóng.");
+        setError("Login popup was closed. This often happens due to 'redirect_uri_mismatch'. Please ensure the Redirect URIs are correctly configured in Google Cloud Console.");
       } else if (e.code === 'auth/cancelled-popup-request') {
         console.warn("Popup request was cancelled by a newer request");
       } else if (e.code === 'auth/network-request-failed') {
-        setError("Lỗi mạng, vui lòng kiểm tra kết nối.");
+        setError("Network error. Please check your connection.");
       } else if (e.code === 'auth/unauthorized-domain') {
-        setError("Tên miền này chưa được cấp phép trong Firebase console.");
+        setError("Domain not authorized in Firebase Console.");
+      } else if (e.code === 'auth/popup-blocked') {
+        setError("Popup blocked by browser. Please allow popups or use 'Open in New Tab'.");
       } else {
-        setError(e.message || "Đã xảy ra lỗi khi đăng nhập.");
+        setError(e.message || "An error occurred during sign in.");
       }
     } finally {
       setIsSigningIn(false);

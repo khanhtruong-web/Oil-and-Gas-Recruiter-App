@@ -76,21 +76,25 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4 font-sans">
-      <Card className="w-full max-w-md shadow-2xl border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-500 rounded-3xl overflow-hidden">
-        <div className="h-2 bg-primary w-full" />
-        <CardHeader className="text-center space-y-4 pt-8 pb-4">
-          <div className="mx-auto bg-primary/10 p-4 rounded-2xl w-fit shadow-inner">
-            <Users className="w-10 h-10 text-primary" />
+    <div className="min-h-screen flex items-center justify-center bg-[#0f172a] p-4 font-sans relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px]" />
+      
+      <Card className="w-full max-w-md shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] border-white/5 bg-white/95 backdrop-blur-sm animate-in zoom-in-95 duration-700 rounded-[2.5rem] overflow-hidden relative">
+        <div className="h-1.5 bg-gradient-to-r from-primary via-blue-400 to-primary w-full" />
+        <CardHeader className="text-center space-y-6 pt-12 pb-6">
+          <div className="mx-auto bg-slate-900 ring-8 ring-slate-100 p-5 rounded-[2rem] w-fit shadow-xl">
+            <Users className="w-10 h-10 text-white" />
           </div>
-          <div>
-            <CardTitle className="text-3xl font-black tracking-tighter text-slate-800">Recruitment Expert</CardTitle>
-            <CardDescription className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-2">
+          <div className="space-y-2">
+            <CardTitle className="text-4xl font-black tracking-tighter text-slate-900">Recruitment Expert</CardTitle>
+            <CardDescription className="text-primary font-black uppercase text-[11px] tracking-[0.2em] mt-1">
               Oil & Gas • Offshore • Global HR
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent className="px-8 pb-10 space-y-6">
+        <CardContent className="px-10 pb-12 space-y-8">
           {error && (
             <div className={`p-5 rounded-2xl text-sm animate-in fade-in slide-in-from-top-1 border transition-all ${
               error.includes('chưa được cấp phép') || error.includes('unauthorized-domain')
@@ -122,10 +126,12 @@ const LoginPage = () => {
                         <span>{window.location.hostname}</span>
                       </div>
                       <p className="mt-2 text-[10px] font-sans leading-relaxed">
-                        💡 **Tips:**<br/>
-                        1. Đảm bảo đã add domain trên vào Firebase Console (Authorized Domains).<br/>
-                        2. Thử **Mở trong tab mới** để tránh lỗi Iframe Auth.<br/>
-                        3. Kiểm tra xem trình duyệt có đang chặn 3rd party cookies không.
+                        💡 **OAuth Critical Setup:**<br/>
+                        1. **Firebase Console:** Add Domain to *Authorized Domains*.<br/>
+                        2. **GCP Console:** Add this to *Authorized Redirect URIs*:<br/>
+                           <div className="font-mono bg-white/10 px-2 py-1 rounded text-[8.5px] mt-1 mb-1 select-all border border-white/5">https://gen-lang-client-0648025381.firebaseapp.com/__/auth/handler</div>
+                        3. **Still getting 400 error?** Click **"error details"** on Google 400 page to see the exact URI Google is receiving. Copy it exactly into GCP *Authorized Redirect URIs* (including protocol).<br/>
+                        4. **Popup Closed:** Usually means the window was closed before finishing (often after seeing the error 400).
                       </p>
                     </div>
                   </div>
@@ -134,44 +140,45 @@ const LoginPage = () => {
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             <Button 
-              className="w-full h-14 text-lg font-black shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all active:scale-95 bg-primary text-white rounded-2xl border-none" 
+              className="w-full h-16 text-lg font-black shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-[0.98] bg-slate-900 text-white rounded-2xl border-none group relative overflow-hidden" 
               onClick={signIn}
               disabled={isSigningIn}
             >
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               {isSigningIn ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <Loader2 className="mr-2 h-6 w-6 animate-spin" />
                   Authenticating...
                 </>
               ) : (
                 <>
-                  <Bot className="w-5 h-5 mr-2" />
+                  <Users className="w-6 h-6 mr-3 text-primary group-hover:scale-110 transition-transform" />
                   Sign in with Google
                 </>
               )}
             </Button>
             
-            <div className="relative py-2">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
-              <div className="relative flex justify-center text-[10px] uppercase font-black tracking-widest"><span className="bg-white px-4 text-slate-300">Or escape sandbox</span></div>
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center px-4"><span className="w-full border-t border-slate-100"></span></div>
+              <div className="relative flex justify-center text-[10px] uppercase font-black tracking-[0.3em]"><span className="bg-white/95 px-4 text-slate-400">Environment Protocol</span></div>
             </div>
 
             <Button 
               variant="outline"
-              className="w-full h-12 text-sm font-bold border-slate-200 hover:bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center gap-2"
+              className="w-full h-14 text-sm font-black border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-600 rounded-2xl flex items-center justify-center gap-3 transition-all uppercase tracking-wider"
               onClick={openInNewTab}
             >
-              <ExternalLink className="w-4 h-4" />
-              Mở trang trong Tab mới
+              <ExternalLink className="w-4 h-4 text-primary" />
+              Open in New Tab
             </Button>
           </div>
 
-          <div className="text-center">
-            <div className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-300">
-               <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-               Enterprise Secure Protocol
+          <div className="text-center pt-2">
+            <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />
+               Enterprise Secure Sync Active
             </div>
           </div>
         </CardContent>
@@ -1133,7 +1140,7 @@ const MainContent = () => {
                 driveFileId: finalDriveId || (existingMatch?.driveFileId || null),
                 driveFileUrl: finalDriveUrl || (existingMatch?.driveFileUrl || null),
                 ownerId: user!.uid,
-                currentStatus: existingMatch ? existingMatch.currentStatus : (c.currentStatus || 'New'), // preserve 'Deleted' status if it was deleted!
+                currentStatus: c.currentStatus || (existingMatch && existingMatch.currentStatus !== 'Deleted' ? existingMatch.currentStatus : 'New'),
                 addedAt: existingMatch ? (existingMatch.addedAt || serverTimestamp()) : serverTimestamp(),
                 updatedAt: serverTimestamp(),
                 email: c.email || (existingMatch?.email || ''),
@@ -1525,45 +1532,60 @@ const MainContent = () => {
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden">
       {/* Sidebar Navigation */}
-      <aside className={`${sidebarCollapsed ? 'w-20' : 'w-72'} bg-slate-900 text-white flex flex-col shrink-0 transition-all duration-300 ease-in-out relative group/sidebar`}>
-        <div className={`p-6 border-b border-white/5 flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+      <aside className={`${sidebarCollapsed ? 'w-20' : 'w-72'} bg-[#0b1224] text-white flex flex-col shrink-0 transition-all duration-300 ease-in-out relative group/sidebar border-r border-white/5`}>
+        <div className={`p-8 flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!sidebarCollapsed && (
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary rounded-xl ring-4 ring-primary/10">
+            <div className="flex items-center gap-4">
+              <div className="p-2.5 bg-slate-800 rounded-2xl ring-1 ring-white/10 shadow-xl">
                 <Users className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <p className="text-lg font-black tracking-tighter leading-none">Expertise</p>
-                <p className="text-[10px] uppercase font-bold text-primary tracking-widest mt-1">Manager V2</p>
+              <div className="flex flex-col">
+                <span className="text-xl font-black tracking-tight leading-none text-white">Expertise</span>
+                <span className="text-[9px] uppercase font-black text-blue-400/60 tracking-[0.2em] mt-1.5">Manager V2</span>
               </div>
             </div>
           )}
           {sidebarCollapsed && (
-             <div className="p-2 bg-primary rounded-xl ring-4 ring-primary/10">
+             <div className="p-2.5 bg-slate-800 rounded-2xl ring-1 ring-white/10">
                 <Users className="w-6 h-6 text-white" />
              </div>
           )}
         </div>
 
-        <nav className="flex-1 px-4 py-8 space-y-8 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto custom-scrollbar scrollbar-hide">
           {menuSections.map(section => (
-            <div key={section.title} className="space-y-2">
-              {!sidebarCollapsed && <p className="px-4 text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">{section.title}</p>}
+            <div key={section.title} className="space-y-3">
+              {!sidebarCollapsed && (
+                <p className="px-5 text-[10px] font-black uppercase text-blue-400/40 tracking-[0.3em] mb-4">
+                  {section.title}
+                </p>
+              )}
               {section.items.map(item => (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm group ${
+                  className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-200 group relative ${
                     activeTab === item.id 
-                    ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]' 
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-white/5 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' 
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.03]'
                   }`}
                   title={sidebarCollapsed ? item.label : ''}
                 >
-                  <item.icon className={`w-5 h-5 flex-shrink-0 ${activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
-                  {!sidebarCollapsed && item.label}
+                  {/* Active Indicator */}
+                  {activeTab === item.id && (
+                    <div className="absolute left-0 w-1 h-6 bg-primary rounded-r-full" />
+                  )}
+                  
+                  <item.icon className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${activeTab === item.id ? 'text-primary' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                  
+                  {!sidebarCollapsed && (
+                    <span className={`text-[14px] font-black tracking-tight ${activeTab === item.id ? 'text-white' : 'text-slate-400'}`}>
+                      {item.label}
+                    </span>
+                  )}
+                  
                   {!sidebarCollapsed && item.id === 'personnel' && candidates.length > 0 && (
-                    <span className="ml-auto bg-white/20 px-2 py-0.5 rounded text-[10px] font-black">
+                    <span className={`ml-auto px-2 py-0.5 rounded text-[10px] font-black ${activeTab === item.id ? 'bg-primary text-white' : 'bg-slate-800 text-slate-500'}`}>
                       {candidates.length}
                     </span>
                   )}
@@ -1576,36 +1598,49 @@ const MainContent = () => {
         {/* Toggle Button */}
         <button 
           onClick={toggleSidebar}
-          className="absolute -right-3 top-24 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all z-[60] text-white"
+          className="absolute -right-3.5 top-24 w-7 h-7 bg-slate-900 border border-white/10 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all z-[60] text-slate-400 hover:text-white"
         >
           {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
 
-        <div className="p-4 border-t border-white/5 bg-black/20">
-          <div className={`p-4 bg-white/5 rounded-2xl space-y-4 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
-             <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
-                <div className="relative">
-                    <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden border border-white/10">
-                        {user?.photoURL && <img src={user.photoURL} alt="User" referrerPolicy="no-referrer" />}
+        {/* User Card */}
+        <div className="p-4 mt-auto">
+          <div className={`p-5 bg-white/[0.03] border border-white/5 rounded-[2rem] space-y-5 transition-all ${sidebarCollapsed ? 'items-center flex flex-col px-2' : ''}`}>
+             <div className={`flex items-center gap-4 ${sidebarCollapsed ? 'justify-center' : ''}`}>
+                <div className="relative shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-slate-800 overflow-hidden ring-2 ring-white/5 shadow-inner">
+                        {user?.photoURL ? (
+                          <img src={user.photoURL} alt="User" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-slate-700 text-white font-bold">
+                            {user?.displayName?.charAt(0) || 'U'}
+                          </div>
+                        )}
                     </div>
                     {/* Sync Dot */}
-                    <SyncDot />
-                </div>
-                {!sidebarCollapsed && (
-                    <div className="flex-1 overflow-hidden">
-                        <p className="text-[10px] font-bold text-slate-500 truncate">{user?.email}</p>
-                        <p className="text-xs font-black truncate">{user?.displayName}</p>
+                    <div className="absolute -bottom-1 -right-1">
+                      <SyncDot />
                     </div>
+                </div>
+                
+                {!sidebarCollapsed && (
+                  <div className="flex-1 overflow-hidden">
+                      <p className="text-[10px] font-black text-slate-500 truncate uppercase tracking-tighter">{user?.email}</p>
+                      <p className="text-sm font-black truncate text-white tracking-tight">{user?.displayName || 'User profile'}</p>
+                  </div>
                 )}
              </div>
+             
              {!sidebarCollapsed && (
                  <Button 
                     variant="ghost" 
-                    className="w-full justify-start text-slate-400 hover:text-white hover:bg-white/5 p-0 h-auto" 
+                    className="w-full justify-start text-slate-400 hover:text-white hover:bg-white/5 p-0 h-auto gap-3 group/signout px-1" 
                     onClick={logout}
                  >
-                   <LogOut className="w-4 h-4 mr-2" />
-                   Sign Out
+                   <div className="p-2 bg-white/5 rounded-xl group-hover/signout:bg-red-500/10 transition-colors">
+                    <LogOut className="w-4 h-4 text-slate-500 group-hover/signout:text-red-400" />
+                   </div>
+                   <span className="text-xs font-black uppercase tracking-widest group-hover/signout:text-white">Sign Out</span>
                  </Button>
              )}
           </div>

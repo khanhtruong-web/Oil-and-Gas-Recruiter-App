@@ -431,20 +431,35 @@ export const Settings = () => {
                                                 Connect Google Account
                                             </Button>
                                         </div>
-                                        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-2 rounded-lg text-[0.75rem]">
-                                            <strong className="block mb-1">⚠️ Important Google Auth Setup:</strong>
-                                            To prevent <span className="font-mono bg-amber-100 px-1">redirect_uri_mismatch</span> errors during login or connection, you must add the following URL to exactly <strong>both</strong> fields in your Google Cloud Console OAuth Client:
-                                            <br/>
-                                            1. <strong>Authorized JavaScript origins</strong>
-                                            <div className="font-mono bg-white border border-amber-200 mt-1 p-1 rounded select-all break-all">{typeof window !== 'undefined' ? window.location.origin : ''}</div>
-                                            <br/>
-                                            2. <strong>Authorized redirect URIs</strong> 
-                                            <div className="font-mono bg-white border border-amber-200 mt-1 p-1 rounded select-all break-all">{typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : ''}</div>
-                                            <div className="mt-2 text-xs text-red-800 bg-red-50 p-2 rounded border border-red-100">
-                                                <strong>Still getting `redirect_uri_mismatch`?</strong><br/>
-                                                1. Click <strong>"error details"</strong> on the Google error page to see the <i>exact</i> missing URI.<br/>
-                                                2. Add the exact URI shown in the error details to both <strong>Authorized redirect URIs</strong> and <strong>Authorized JavaScript origins</strong>.<br/>
-                                                3. If you are previewing inside the AI Studio editor, you MUST also add <span className="font-mono bg-white px-1">https://ai.studio</span> to <strong>Authorized JavaScript origins</strong>.
+                                        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-lg text-[0.75rem]">
+                                            <strong className="block mb-2 text-amber-900 border-b border-amber-200 pb-1">⚠️ CRITICAL: Fix redirect_uri_mismatch (Step-by-Step)</strong>
+                                            
+                                            <div className="space-y-3 mt-2">
+                                                <div>
+                                                    <p className="font-bold mb-1">1. For "Sign in with Google" (Firebase Auth):</p>
+                                                    <p className="mb-1 italic">Add this to <strong>Authorized redirect URIs</strong> in GCP Console:</p>
+                                                    <div className="font-mono bg-white border border-amber-200 p-2 rounded select-all break-all text-blue-700">https://gen-lang-client-0648025381.firebaseapp.com/__/auth/handler</div>
+                                                </div>
+
+                                                <div>
+                                                    <p className="font-bold mb-1">2. For "Connect Google Account" (Manual Drive API):</p>
+                                                    <p className="mb-1 italic">Add this to <strong>Authorized redirect URIs</strong> in GCP Console:</p>
+                                                    <div className="font-mono bg-white border border-amber-200 p-2 rounded select-all break-all text-blue-700">{typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : ''}</div>
+                                                </div>
+
+                                                <div>
+                                                    <p className="font-bold mb-1">3. For both (origins):</p>
+                                                    <p className="mb-1 italic">Add these to <strong>Authorized JavaScript origins</strong>:</p>
+                                                    <div className="space-y-1">
+                                                        <div className="font-mono bg-white border border-amber-200 p-1 px-2 rounded select-all break-all text-blue-700">{typeof window !== 'undefined' ? window.location.origin : ''}</div>
+                                                        <div className="font-mono bg-white border border-amber-200 p-1 px-2 rounded select-all break-all text-blue-700">https://gen-lang-client-0648025381.firebaseapp.com</div>
+                                                        <div className="font-mono bg-red-50 border border-red-200 p-1 px-2 rounded select-all break-all text-red-700 font-bold">https://ai.studio</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-4 text-[0.7rem] bg-amber-100/50 p-2 rounded border border-amber-200 text-amber-900">
+                                                <strong>Still failing?</strong> Click <strong>"error details"</strong> on the Google error 400 page. It will say exactly which URI is missing. Copy that EXACT URI (e.g. including storagerelay://) and add it to the <strong>Authorized redirect URIs</strong> list.
                                             </div>
                                         </div>
                                     </div>

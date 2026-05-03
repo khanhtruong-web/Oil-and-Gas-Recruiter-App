@@ -36,9 +36,12 @@ export async function syncToGoogleSheets(sheetId?: string, values?: any[], sheet
   
   // Replace slashes or special characters in sheet name
   const safeSheetName = sheetName.replace(/[/\\?*[\]]/g, '_');
-  const range = `${safeSheetName}!A:A`;
+  // Always quote the sheet name and escape internal single quotes
+  const quotedSheetName = `'${safeSheetName.replace(/'/g, "''")}'`;
+  const range = `${quotedSheetName}!A:A`;
 
   try {
+    console.log(`[Sheets] Appending to sheet: ${sheetId}, range: ${range}`);
     await googleManager.callAPI('/api/sheets/append', {
       method: 'POST',
       headers: {
@@ -52,6 +55,7 @@ export async function syncToGoogleSheets(sheetId?: string, values?: any[], sheet
     });
   } catch (err: any) {
     const errorMsg = err.message || JSON.stringify(err);
+    console.error(`[Sheets] Append failed for range "${range}":`, errorMsg);
     // If range not found, try creating the sheet. Google API returns 400 with "Unable to parse range" or generic 400 for INVALID_ARGUMENT if tab missing
     if (errorMsg.includes("Unable to parse range") || errorMsg.includes("400") || errorMsg.toLowerCase().includes("range") || errorMsg.includes("INVALID_ARGUMENT")) {
       try {
