@@ -83,8 +83,8 @@ service cloud.firestore {
     match /settings/{userId} {
       allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin() || userId == 'system_config');
       allow list: if isAdmin();
-      allow create: if isSignedIn() && request.auth.uid == userId && isValidSetting(incoming());
-      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId && isValidSetting(incoming()) && incoming().role == existing().role);
+      allow create: if (isSignedIn() && request.auth.uid == userId && isValidSetting(incoming())) || (isAdmin() && userId == 'system_config');
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId && isValidSetting(incoming()) && incoming().get('role', 'Viewer') == existing().get('role', 'Viewer'));
     }
 
     // SYSTEM COLLECTION

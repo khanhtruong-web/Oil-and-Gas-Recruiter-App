@@ -141,6 +141,7 @@ export class GoogleWorkspaceManager {
                 response = await fetch(url, { ...options, headers });
             } else {
                 if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('auth-required'));
+                throw new Error("AUTH_REQUIRED: Authentication required for Google services. Please grant permission in Settings.");
             }
         }
 

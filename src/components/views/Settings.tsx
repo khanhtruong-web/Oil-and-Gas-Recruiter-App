@@ -143,10 +143,10 @@ export const Settings = () => {
             return urlOrId;
         };
 
-        const driveId = extractId((e.currentTarget as any).driveId.value);
-        const driveSourceId = extractId((e.currentTarget as any).driveSourceId?.value);
-        const sheetId = extractId((e.currentTarget as any).sheetId.value);
-        const googleClientId = (e.currentTarget as any).googleClientId.value?.trim();
+        const driveId = extractId((e.currentTarget as any).driveId?.value || '');
+        const driveSourceId = extractId((e.currentTarget as any).driveSourceId?.value || '');
+        const sheetId = extractId((e.currentTarget as any).sheetId?.value || '');
+        const googleClientId = (e.currentTarget as any).googleClientId?.value?.trim() || '';
         try {
             await setDoc(doc(db, 'settings', 'system_config'), {
                 driveSourceFolderId: driveSourceId || settings?.driveSourceFolderId || '',
@@ -361,6 +361,7 @@ export const Settings = () => {
                             </div>
                             
                             <Input 
+                                key={`gemini_${settings?.geminiApiKey || 'empty'}`}
                                 type="password"
                                 placeholder="..." 
                                 defaultValue={settings?.geminiApiKey || ''}
@@ -765,7 +766,11 @@ const UserManagementSection = () => {
             try {
                 const { collection, getDocs } = await import('firebase/firestore');
                 const snap = await getDocs(collection(db, path));
-                setUsers(snap.docs.map(d => d.data() as UserSettings));
+                setUsers(
+                    snap.docs
+                        .filter(d => d.id !== 'system_config')
+                        .map(d => ({ ...d.data(), userId: d.id } as UserSettings))
+                );
             } catch (e) {
                 handleFirestoreError(e, OperationType.GET, path);
             } finally {

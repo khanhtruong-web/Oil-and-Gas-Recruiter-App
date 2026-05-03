@@ -83,19 +83,19 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
         
         const vars = getTemplateVariables(selectedTemplate.fileBase64);
         if (vars.length === 0) {
-            return toast.warning('No {Variables} found in template. Please add placeholders like {Name}, {Experience} into your Word document before uploading.', { duration: 8000 });
+            return toast.warning('Lỗi: Không tìm thấy thẻ {Biến} nào trong file Word. Vui lòng đọc Hướng dẫn và thêm các thẻ như {CANDIDATE_NAME} vào form trước khi tải lên.', { duration: 8000 });
         }
 
         setProcessingAI(true);
         try {
-            toast.loading('AI is analyzing structural template fields...', { id: 'ai-map' });
+            toast.loading('AI đang phân tích cấu trúc và map dữ liệu...', { id: 'ai-map' });
             const result = await geminiService.mapCVToTemplate(cv.rawText, vars);
             setMappedData(result);
             setShowPreview(true);
-            toast.success('AI Data Mapping Complete', { id: 'ai-map' });
+            toast.success('AI Map dữ liệu thành công!', { id: 'ai-map' });
         } catch (error) {
             console.error(error);
-            toast.error('AI Extraction failed.', { id: 'ai-map' });
+            toast.error('AI Extraction lỗi. Vui lòng kiểm tra lại độ dài quá lớn hoặc sai định dạng thẻ.', { id: 'ai-map' });
         } finally {
             setProcessingAI(false);
         }
@@ -246,13 +246,45 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
                 </div>
             </div>
             
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                    <strong>How to use Custom Templates:</strong>
-                    <p className="mt-1">
-                        To correctly map an applicant's data, your Word document must contain curly braces as placeholders (e.g. <code>{'{CandidateName}'}</code>, <code>{'{YearsOfExperience}'}</code>, <code>{'{Education}'}</code>). Our AI will automatically find these tags and format the CV while <strong>100% retaining your original tables, fonts, and styling</strong>.
-                    </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 text-sm text-blue-900 shadow-sm flex items-start gap-4">
+                <Info className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
+                <div className="space-y-4 w-full">
+                    <div>
+                        <strong className="text-lg">Hướng dẫn Tạo & Tải lên Form CV Công Ty (File Word .docx)</strong>
+                        <p className="mt-2 text-slate-700 leading-relaxed">
+                            Để AI có thể trích xuất chính xác dữ liệu từ PDF/CV gốc và điền thẳng vào Form CV Word của công ty bạn, file Word tải lên <strong>BẮT BUỘC</strong> phải chứa các thẻ định danh (biến/variable) được bọc trong cặp ngoặc nhọn <code>{'{ }'}</code>. AI sẽ tự động đọc các thẻ này để mapping dữ liệu.
+                        </p>
+                    </div>
+
+                    <div className="bg-white/60 p-4 rounded-lg border border-blue-100">
+                        <strong className="text-blue-800">Các bước chuẩn bị File Word:</strong>
+                        <ul className="list-decimal ml-5 mt-2 space-y-2 text-slate-700">
+                            <li><strong>Thiết kế form chuẩn:</strong> Trình bày bảng biểu, logo, font chữ, bố cục đứng/ngang đúng theo yêu cầu Form CV của khách hàng (VD: PTSC, Vietsopetro...).</li>
+                            <li><strong>Điền các Placeholder (Thẻ định danh):</strong> Gõ các thẻ sau vào những vị trí cần điền thông tin:
+                                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 font-mono text-[11px] bg-slate-800 text-green-400 p-3 rounded-md">
+                                    <div>{'{CANDIDATE_NAME}'} <span className="text-slate-400 font-sans">- Tên ứng viên</span></div>
+                                    <div>{'{DISCIPLINE}'} <span className="text-slate-400 font-sans">- Vị trí/Chuyên ngành</span></div>
+                                    <div>{'{EMAIL}'} <span className="text-slate-400 font-sans">- Email ứng viên</span></div>
+                                    <div>{'{PHONE}'} <span className="text-slate-400 font-sans">- Số điện thoại</span></div>
+                                    <div>{'{YEARS_EXP}'} <span className="text-slate-400 font-sans">- Số năm kinh nghiệm</span></div>
+                                    <div>{'{SUMMARY}'} <span className="text-slate-400 font-sans">- Tóm tắt chung</span></div>
+                                    <div className="col-span-1 md:col-span-2">{'{WORK_EXPERIENCE}'} <span className="text-slate-400 font-sans">- Kinh nghiệm làm việc chi tiết</span></div>
+                                    <div className="col-span-1 md:col-span-2">{'{EDUCATION}'} <span className="text-slate-400 font-sans">- Quá trình học tập / Bằng cấp</span></div>
+                                </div>
+                            </li>
+                            <li><strong>Các trường tùy chỉnh tự do:</strong> Bạn có thể tự đặt thêm bất kỳ biến nào bạn cần cho dự án, ví dụ <code>{'{CERTIFICATES}'}</code>, <code>{'{PROJECTS_LIST}'}</code>, <code>{'{SOFTWARE_SKILLS}'}</code>. Khi bạn bấm nút <b>AI Map Formats</b>, AI sẽ tự phân tích ngữ cảnh của từ khoá bên trong ngoặc nhọn để tìm ra đoạn thông tin tương ứng từ CV gốc và điền vào bản Word.</li>
+                            <li><strong>Lưu lại dưới dạng định dạng <span className="text-blue-600 whitespace-nowrap">.docx</span></strong> và click <strong className="text-blue-600">New Template</strong> để tải lên. Bạn sẽ giữ được 100% định dạng, bảng biểu, style chữ ban đầu.</li>
+                        </ul>
+                    </div>
+
+                    <div className="text-blue-800 font-medium">
+                        💡 Lỗi "AI Map Formats" & "Extraction Failed" thường xảy ra nếu file template Word của bạn:
+                        <ul className="list-disc ml-5 mt-1 font-normal text-slate-700">
+                            <li>Thiếu dấu ngoặc nhọn, hoặc gõ sai ngoặc (vd: [Name], (Name) là sai, phải là <code>{'{Name}'}</code>).</li>
+                            <li>Tải lên file định dạng cũ (.doc) thay vì (.docx).</li>
+                            <li>File Word bị lỗi định dạng ẩn (hidden formatting) bên trong dấu ngoặc nhọn (vd copy-paste làm đứt gãy biến). Cách khắc phục: Bôi đen biến, chuột phải chọn "Keep Text Only" hoặc gõ lại bằng tay trực tiếp trên file Word.</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 

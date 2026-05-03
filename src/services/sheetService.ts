@@ -19,23 +19,36 @@ function extractGoogleObjId(urlOrId: string): string {
 }
 
 async function callGoogleApiDirect(url: string, options: RequestInit = {}) {
-  const token = await googleManager.ensureValidToken();
-  if (!token) throw new Error("AUTH_REQUIRED: Authentication required for Google services.");
-  const res = await fetch(url, {
-      ...options,
-      headers: {
-          ...options.headers,
-          Authorization: `Bearer ${token}`,
-      }
+  let token = await googleManager.ensureValidToken();
+  if (!token) {
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('auth-required'));
+      throw new Error("AUTH_REQUIRED: Authentication required for Google services.");
+  }
+  
+  const getHeaders = (t: string) => ({
+      ...options.headers,
+      Authorization: `Bearer ${t}`,
   });
+  
+  let res = await fetch(url, { ...options, headers: getHeaders(token) });
+  
+  if (res.status === 401) {
+      const freshToken = await googleManager.refreshAccessToken();
+      if (freshToken) {
+          res = await fetch(url, { ...options, headers: getHeaders(freshToken) });
+      }
+  }
+  
   if (!res.ok) {
       if (res.status === 401 && typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('auth-required'));
+          throw new Error("AUTH_REQUIRED");
       }
       const errData = await res.json().catch(() => null);
       throw new Error(errData?.error?.message || `HTTP Error ${res.status}`);
   }
-  return res.json();
+  if (res.status === 204) return null;
+  return res.json().catch(() => null);
 }
 
 export async function syncToGoogleSheets(sheetId?: string, values?: any[], sheetName: string = 'Sheet1') {
@@ -103,6 +116,10 @@ export async function logActivity(sheetId?: string, userEmail?: string, action?:
     if (error.message?.includes('Google Sheet not found')) {
       console.warn('Activity logging skipped: ' + error.message);
       return;
+    }
+    if (error.message?.includes('Request had invalid authentication credentials') || error.message?.includes('AUTH_REQUIRED')) {
+        console.warn('Activity logging skipped: Authentication required.');
+        return;
     }
     console.error('Failed to log activity to Google Sheets', error);
     if (error.message.includes('API is disabled')) {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Eye, Trash2 } from 'lucide-react';
+import { Search, Eye, Trash2, ExternalLink } from 'lucide-react';
 import { Candidate, CandidateStatus } from '../../types';
 import { useDisciplines } from '../../hooks/useDisciplines';
 import { Badge } from '@/components/ui/badge';
@@ -110,6 +110,11 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
                                             <td className="px-6 py-4 font-medium">{c.yearsExp}</td>
                                             <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate">{c.specializedField}</td>
                                             <td className="px-6 py-4 text-right flex justify-end gap-1">
+                                                {(c.driveFileUrl || c.fileUrl) && (
+                                                    <Button variant="ghost" size="icon" title="Open CV File" onClick={() => window.open(c.driveFileUrl || c.fileUrl, '_blank')}>
+                                                        <ExternalLink className="w-4 h-4" />
+                                                    </Button>
+                                                )}
                                                 <Button variant="ghost" size="icon" onClick={() => setSelectedCandidate(c)} title="View Detail">
                                                     <Eye className="w-4 h-4" />
                                                 </Button>
@@ -145,7 +150,15 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
             <Dialog open={!!selectedCandidate} onOpenChange={() => setSelectedCandidate(null)}>
                 <DialogContent className="max-w-3xl">
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-black">{selectedCandidate?.candidateName}</DialogTitle>
+                        <DialogTitle className="text-xl font-black flex items-center justify-between pr-8">
+                            <span>{selectedCandidate?.candidateName}</span>
+                            {(selectedCandidate?.driveFileUrl || selectedCandidate?.fileUrl) && (
+                                <Button variant="outline" size="sm" onClick={() => window.open(selectedCandidate.driveFileUrl || selectedCandidate.fileUrl, '_blank')} className="gap-2">
+                                    <ExternalLink className="w-4 h-4" />
+                                    Open CV
+                                </Button>
+                            )}
+                        </DialogTitle>
                     </DialogHeader>
                     {selectedCandidate && (
                         <div className="grid grid-cols-2 gap-4 mt-4">
@@ -163,7 +176,7 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
                                     <Badge>{selectedCandidate.currentStatus}</Badge>
                                     {onStatusChange && (
                                         <Select 
-                                            defaultValue={selectedCandidate.currentStatus}
+                                            value={selectedCandidate.currentStatus}
                                             onValueChange={(val) => onStatusChange(selectedCandidate.id, val as CandidateStatus)}
                                         >
                                             <SelectTrigger className="h-8 text-[11px] w-[200px]">

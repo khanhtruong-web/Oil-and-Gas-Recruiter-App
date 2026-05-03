@@ -530,24 +530,28 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
                                 
                                 <div className="flex-1 overflow-y-auto p-8 scrollbar-thin bg-slate-100/40">
                                     {previewMode === 'file' && (reviewingCv.fileType === 'application/pdf' || reviewingCv.fileName.endsWith('.pdf')) ? (
-                                        <div className="flex justify-center mb-8">
+                                        <div className="flex flex-col items-center gap-6 mb-8">
                                             <Document
                                                 file={reviewingCv.fileUrl}
                                                 onLoadSuccess={({ numPages }) => setPdfNumPages(numPages)}
                                                 loading={
-                                                    <div className="flex flex-col items-center justify-center h-[600px] border-2 border-dashed border-slate-200 rounded-3xl bg-white/50">
+                                                    <div className="flex flex-col items-center justify-center h-[600px] border-2 border-dashed border-slate-200 rounded-3xl bg-white/50 w-full">
                                                         <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
                                                         <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Rendering Digital Preview...</span>
                                                     </div>
                                                 }
-                                                className="shadow-2xl rounded-sm border border-slate-200 overflow-hidden"
+                                                className="flex flex-col gap-6"
                                             >
-                                                <Page 
-                                                    pageNumber={pdfPageNumber} 
-                                                    width={window.innerWidth * (leftPanelWidth/100) * 0.9} 
-                                                    renderTextLayer={true} 
-                                                    renderAnnotationLayer={true} 
-                                                />
+                                                {Array.from({ length: pdfNumPages || 0 }, (_, i) => i + 1).map(page => (
+                                                    <div key={`page_${page}`} className="shadow-2xl rounded-sm border border-slate-200 overflow-hidden">
+                                                        <Page 
+                                                            pageNumber={page} 
+                                                            width={window.innerWidth * (leftPanelWidth/100) * 0.9} 
+                                                            renderTextLayer={true} 
+                                                            renderAnnotationLayer={true} 
+                                                        />
+                                                    </div>
+                                                ))}
                                             </Document>
                                         </div>
                                     ) : previewMode === 'file' && reviewingCv.rawHtml ? (
@@ -567,36 +571,6 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
                                         </div>
                                     )}
                                 </div>
-
-                                {previewMode === 'file' && (reviewingCv.fileType === 'application/pdf' || reviewingCv.fileName.endsWith('.pdf')) && (
-                                    <div className="px-6 py-3 bg-white border-t border-slate-200 flex items-center justify-between shrink-0">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Document Navigation</span>
-                                        <div className="flex items-center gap-6">
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm" 
-                                                className="h-9 px-4 font-bold border-slate-200 rounded-xl" 
-                                                disabled={pdfPageNumber <= 1} 
-                                                onClick={() => setPdfPageNumber(p => p - 1)}
-                                            >
-                                                <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                                            </Button>
-                                            <p className="text-xs font-black text-slate-700 bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200">
-                                                Page {pdfPageNumber} of {pdfNumPages || '...'}
-                                            </p>
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm" 
-                                                className="h-9 px-4 font-bold border-slate-200 rounded-xl" 
-                                                disabled={pdfNumPages > 0 && pdfPageNumber >= (pdfNumPages || 1)} 
-                                                onClick={() => setPdfPageNumber(p => p + 1)}
-                                            >
-                                                Next <ChevronRight className="w-4 h-4 ml-1" />
-                                            </Button>
-                                        </div>
-                                        <div className="w-20" /> {/* Spacer */}
-                                    </div>
-                                )}
 
                                 {/* Resize Handle */}
                                 <div 

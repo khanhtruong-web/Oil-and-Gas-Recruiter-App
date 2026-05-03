@@ -8,22 +8,36 @@ export interface DriveFile {
 }
 
 async function callGoogleApiDirect(url: string, options: RequestInit = {}) {
-  const token = await googleManager.ensureValidToken();
-  if (!token) throw new Error("AUTH_REQUIRED: Authentication required for Google services.");
-  const res = await fetch(url, {
-      ...options,
-      headers: {
-          ...options.headers,
-          Authorization: `Bearer ${token}`,
-      }
+  let token = await googleManager.ensureValidToken();
+  if (!token) {
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('auth-required'));
+      throw new Error("AUTH_REQUIRED: Authentication required for Google services.");
+  }
+  
+  const getHeaders = (t: string) => ({
+      ...options.headers,
+      Authorization: `Bearer ${t}`,
   });
+  
+  let res = await fetch(url, { ...options, headers: getHeaders(token) });
+  
+  if (res.status === 401) {
+      const freshToken = await googleManager.refreshAccessToken();
+      if (freshToken) {
+          res = await fetch(url, { ...options, headers: getHeaders(freshToken) });
+      }
+  }
+  
   if (!res.ok) {
       if (res.status === 401 && typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('auth-required'));
+          throw new Error("AUTH_REQUIRED");
       }
       const errData = await res.json().catch(() => null);
       throw new Error(errData?.error?.message || `HTTP Error ${res.status}`);
   }
+  
+  if (res.status === 204) return null;
   return res.json();
 }
 
@@ -54,17 +68,9 @@ export async function findDriveFolder(name: string, parentId?: string): Promise<
 }
 
 export async function deleteDriveFile(fileId: string): Promise<void> {
-    const token = await googleManager.ensureValidToken();
-    if (!token) throw new Error("AUTH_REQUIRED");
-    
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+    await callGoogleApiDirect(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+        method: 'DELETE'
     });
-    if (!res.ok) {
-        const errData = await res.json().catch(() => null);
-        throw new Error(errData?.error?.message || `Failed to delete file`);
-    }
 }
 
 export async function findOrCreateFolder(name: string, parentId?: string): Promise<string> {
