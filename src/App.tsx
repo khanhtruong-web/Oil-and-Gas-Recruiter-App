@@ -1117,25 +1117,38 @@ const MainContent = () => {
     }, [user, profile]);
 
     useEffect(() => {
-        if (!user) return;
-        const q = query(collection(db, 'activities'), orderBy('timestamp', 'desc'), limit(15));
+        if (!user || !profile) return;
+        // Admins can see more history
+        const logLimit = profile.role === 'Admin' ? 50 : 20;
+        const q = query(collection(db, 'activities'), orderBy('timestamp', 'desc'), limit(logLimit));
+        
         return onSnapshot(q, (snap) => {
-            setActivities(snap.docs.map(d => d.data() as ActivityLog));
+            const logs = snap.docs.map(d => {
+                const data = d.data();
+                return {
+                    ...data,
+                    id: d.id,
+                    // Ensure we handle serverTimestamp() being null initially
+                    timestamp: data.timestamp ? (data.timestamp.toMillis ? data.timestamp.toDate() : new Date(data.timestamp)) : new Date()
+                } as ActivityLog;
+            });
+            setActivities(logs);
             if (snap.docChanges().length > 0 && !snap.metadata.fromCache) {
                 window.dispatchEvent(new CustomEvent('app-data-sync', { detail: { type: 'activities' } }));
             }
         }, (error) => {
             handleFirestoreError(error, OperationType.LIST, 'activities');
         });
-    }, [user]);
+    }, [user, profile]);
 
-    const logActivity = async (text: string) => {
+    const logActivity = async (text: string, type: string = 'general') => {
         const path = 'activities';
         try {
             await addDoc(collection(db, path), {
                 userId: user!.uid,
                 userName: profile?.userName || user!.displayName || 'User',
                 text,
+                type,
                 timestamp: serverTimestamp()
             });
             if (accessToken && settings?.googleSheetId) {
@@ -1166,7 +1179,7 @@ const MainContent = () => {
     useEffect(() => {
         if (user && profile && settings && accessToken && !hasLoggedLoginRef.current) {
             hasLoggedLoginRef.current = true;
-            logActivity('User logged into the application');
+            logActivity('Logged into the application', 'login');
         }
     }, [user, profile, settings, accessToken]);
 
@@ -1355,7 +1368,7 @@ const MainContent = () => {
                 handleFirestoreError(e, OperationType.WRITE, backupPath);
             }
             
-            await logActivity(`Added expert: ${c.candidateName} (Auto-backed up)`);
+            await logActivity(`Added expert: ${c.candidateName} (Auto-backed up)`, 'extract');
             toast.success('Expert Processed and Safety Backup Created');
             setActiveTab('catalog');
         } catch (err) {
@@ -1453,7 +1466,7 @@ const MainContent = () => {
                     }
             }
 
-            await logActivity(`Updated ${cand?.candidateName} to ${status}`);
+            await logActivity(`Updated ${cand?.candidateName} to ${status}`, 'status');
             toast.success('Expert status synchronized');
         } catch (err: any) {
             const errorMsg = err.message || JSON.stringify(err);
@@ -1496,7 +1509,7 @@ const MainContent = () => {
                 }
             }
 
-            await logActivity(`Updated discipline to [${discipline}] for: ${cand?.candidateName}`);
+            await logActivity(`Updated discipline to [${discipline}] for: ${cand?.candidateName}`, 'status');
             toast.success('Discipline updated');
         } catch (err: any) {
             handleFirestoreError(err, OperationType.UPDATE, `candidates/${id}`);
@@ -1518,7 +1531,7 @@ const MainContent = () => {
             if (cand?.currentStatus?.toLowerCase() === 'deleted' || (cand as any)?.status?.toLowerCase() === 'deleted') {
                 // Permanent delete
                 await deleteDoc(doc(db, 'candidates', id));
-                await logActivity(`Permanently deleted expert record: ${cand?.candidateName}`);
+                await logActivity(`Permanently deleted expert record: ${cand?.candidateName}`, 'delete');
                 toast.success('Expert record permanently deleted');
             } else {
                 // Soft delete by updating status
@@ -1528,7 +1541,7 @@ const MainContent = () => {
                     deletedAt: serverTimestamp(),
                     deletedBy: user!.uid
                 });
-                await logActivity(`Moved expert record to Trash: ${cand?.candidateName}`);
+                await logActivity(`Moved expert record to Trash: ${cand?.candidateName}`, 'delete');
                 toast.success('Expert moved to Trash');
             }
         } catch (err: any) {

@@ -74,7 +74,9 @@ class GeminiService {
       const response = await this.ai.models.generateContent({
         model: this.modelName,
         contents: `Act as a professional recruiter. Extract structured data from this CV text.
-For 'professionalSummary' (Pitch Summary), you MUST generate a comprehensive professional bio that explicitly includes:
+The CV may be in English, Vietnamese, or a mix of both. 
+For 'discipline', 'specializedField', and 'workFields', you MUST provide the most accurate English technical terms for the Oil & Gas industry, even if the source is in Vietnamese.
+For 'professionalSummary' (Pitch Summary), you MUST generate a comprehensive professional bio in English that explicitly includes:
 - A brief overview of their primary expertise/field (what they have the most experience doing).
 - Notable certifications (if any).
 - Details about their most recent project or role.
@@ -118,6 +120,8 @@ CV TEXT:\n\n${text.substring(0, 30000)}`,
       const response = await this.ai.models.generateContent({
         model: this.modelName,
         contents: `Extract detailed information from the CV text to fill these specific template variables: ${vars.join(', ')}. 
+The CV may be in English or Vietnamese. Please ensure the extracted values are clear and professional. 
+For technical variables, favor standard Oil & Gas English terminology if the context is technical.
 For any table or list data expected, format it properly as text. If info is missing, output 'N/A'.
 CV TEXT:
 ${rawText.substring(0, 30000)}`,
@@ -150,6 +154,8 @@ ${rawText.substring(0, 30000)}`,
       prompt = `Act as an expert technical recruiter matching CVs against a Job Description.
 Please find the best matching candidates for the following Job Description out of the provided list of candidates. 
 For each top candidate, explain why they are a good fit, their scores against the JD, and explicitly list matching and missing certificates.
+Format your response as a professional report with a summary table at the top including ID, Name, Discipline, and Match Score (0-100%).
+Then provide details for each top-ranked candidate.
 
 JOB DESCRIPTION:
 ${jobDescription.substring(0, 10000)}
@@ -159,6 +165,7 @@ CANDIDATES DATA (summarized):
       const candidatesData = allCandidates.map(c => `ID: ${c.id}\nName: ${c.candidateName}\nDiscipline: ${c.discipline}\nExperience: ${c.yearsExp} years\nKey Skills: ${c.keySkills || 'N/A'}\nCertifications: ${c.certifications || 'N/A'}\nProfessional Summary: ${c.professionalSummary || 'N/A'}\n---`).join('\n');
       contents = prompt + candidatesData.substring(0, 20000);
     } else {
+      // (rest of the logic remains same for single analyze)
       if (mode === 'spellcheck') {
         prompt = "Proofread this CV bio for grammar and spelling. Return standard English corrections.";
       } else if (mode === 'review') {
@@ -194,6 +201,65 @@ ${jobDescription.substring(0, 10000)}
     } catch (error) {
       console.error("Gemini Analysis Error:", error);
       return "Analysis failed due to an AI error.";
+    }
+  }
+
+  async matchCandidatesStructured(jobDescription: string, candidates: Candidate[]): Promise<any> {
+    if (!this.ai) await this.initClient();
+    if (!this.ai) throw new Error("API Key logic failed: Gemini API key is required.");
+
+    const schema = {
+      type: Type.OBJECT,
+      properties: {
+        matches: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              candidateId: { type: Type.STRING },
+              name: { type: Type.STRING },
+              score: { type: Type.NUMBER },
+              discipline: { type: Type.STRING },
+              strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+              weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
+              matchingCerts: { type: Type.ARRAY, items: { type: Type.STRING } },
+              missingCerts: { type: Type.ARRAY, items: { type: Type.STRING } },
+              summary: { type: Type.STRING }
+            },
+            required: ["candidateId", "name", "score", "strengths", "weaknesses", "summary"]
+          }
+        }
+      },
+      required: ["matches"]
+    };
+
+    const prompt = `Act as an expert technical recruiter. Match the provided candidates against the Job Description.
+Return a structured JSON list of the top matches. 
+For each candidate, provide a match score (0-100), identify 3-5 key strengths and 2-3 weaknesses relative to the JD.
+Also explicitly list matching and missing certifications based on the JD requirements.
+
+JOB DESCRIPTION:
+${jobDescription.substring(0, 8000)}
+
+CANDIDATES:
+${candidates.map(c => `ID: ${c.id}, Name: ${c.candidateName}, Disc: ${c.discipline}, Exp: ${c.yearsExp}, Skills: ${c.keySkills}, Certs: ${c.certifications}, Summary: ${c.professionalSummary}`).join('\n---\n')}
+`;
+
+    try {
+      const response = await this.ai.models.generateContent({
+        model: this.modelName,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: schema,
+          temperature: 0.1
+        }
+      });
+
+      return JSON.parse(response.text || '{"matches":[]}');
+    } catch (error) {
+      console.error("Gemini Structured Match Error:", error);
+      throw error;
     }
   }
 

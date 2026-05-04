@@ -471,8 +471,11 @@ async function startServer() {
   });
 
 
+  // Check if we are running the compiled dist file
+  const isProd = process.env.NODE_ENV === "production" || (typeof __dirname !== 'undefined' && __dirname.endsWith('dist'));
+
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (!isProd) {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },

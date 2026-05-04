@@ -16,6 +16,7 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
     const [activeTool, setActiveTool] = useState<'spellcheck' | 'review' | 'suggest' | 'match'>('spellcheck');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<string>('');
+    const [matchResults, setMatchResults] = useState<any>(null);
 
     const exportReport = async () => {
         if (!result) return toast.error('No result to export');
@@ -97,15 +98,23 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
         }
         
         setLoading(true);
+        setMatchResults(null);
+        setResult('');
+
         try {
-            // If match mode, pass candidates. If suggest (tips), don't pass candidates so Gemini knows to treat it as single CV improvement
-            const res = await geminiService.analyzeCV(
-                cv?.rawText || "", 
-                activeTool, 
-                jobDescription, 
-                activeTool === 'match' ? candidates : undefined
-            );
-            setResult(res);
+            if (activeTool === 'match') {
+                const res = await geminiService.matchCandidatesStructured(jobDescription, candidates);
+                setMatchResults(res);
+                // Also set a fallback text for export
+                setResult(res.matches.map((m: any) => `## ${m.name} (${m.score}%)\n\n**Discipline:** ${m.discipline}\n\n**Strengths:**\n- ${m.strengths?.join('\n- ')}\n\n**Weaknesses:**\n- ${m.weaknesses?.join('\n- ')}\n\n**Matching Certs:** ${m.matchingCerts?.join(', ') || 'None'}\n\n**Missing Certs:** ${m.missingCerts?.join(', ') || 'None'}\n\n**Summary:** ${m.summary}`).join('\n\n---\n\n'));
+            } else {
+                const res = await geminiService.analyzeCV(
+                    cv?.rawText || "", 
+                    activeTool, 
+                    jobDescription
+                );
+                setResult(res);
+            }
         } catch (e) {
             toast.error('AI Analysis failed');
         } finally {
@@ -127,7 +136,7 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
                     <Card 
                         key={tool.id}
                         className={`border-2 cursor-pointer transition-all ${activeTool === tool.id ? 'border-primary shadow-md scale-[1.02]' : 'border-transparent shadow-sm'}`}
-                        onClick={() => { setActiveTool(tool.id as any); setResult(''); }}
+                        onClick={() => { setActiveTool(tool.id as any); setResult(''); setMatchResults(null); }}
                     >
                         <CardHeader className="text-center pb-2">
                             <div className={`w-14 h-14 mx-auto mb-2 rounded-xl bg-gradient-to-br ${tool.bg} flex items-center justify-center text-white shadow-lg`}>
@@ -231,6 +240,84 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
                             <div className="flex flex-col items-center justify-center h-full pt-16 text-slate-400 gap-4">
                                 <Loader2 className="w-10 h-10 animate-spin text-primary" />
                                 <p className="font-bold text-xs uppercase tracking-widest">Scanning Document...</p>
+                            </div>
+                        ) : matchResults ? (
+                            <div className="space-y-8">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                                        <TrendingUp className="w-4 h-4 text-emerald-500" />
+                                        Best Matched Candidates
+                                    </h3>
+                                    <Button size="sm" onClick={exportReport} className="shadow-lg bg-indigo-600 hover:bg-indigo-700 font-bold">
+                                        <Download className="w-4 h-4 mr-2" /> Export Word Report
+                                    </Button>
+                                </div>
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                    {matchResults.matches.map((match: any, idx: number) => (
+                                        <Card key={idx} className="border-none shadow-md overflow-hidden relative group hover:shadow-xl transition-all duration-300">
+                                            <div className={`absolute top-0 left-0 w-1.5 h-full ${match.score >= 80 ? 'bg-emerald-500' : match.score >= 60 ? 'bg-amber-500' : 'bg-slate-400'}`} />
+                                            <CardHeader className="bg-white pb-3">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <CardTitle className="text-base font-black text-slate-900">{match.name}</CardTitle>
+                                                        <CardDescription className="text-[10px] font-bold uppercase tracking-tight text-slate-500">{match.discipline}</CardDescription>
+                                                    </div>
+                                                    <div className={`px-4 py-2 rounded-xl text-white font-black text-lg shadow-sm ${match.score >= 80 ? 'bg-emerald-500' : match.score >= 60 ? 'bg-amber-500' : 'bg-slate-500'}`}>
+                                                        {match.score}%
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent className="space-y-5 pt-0">
+                                                <p className="text-xs text-slate-600 italic leading-relaxed border-l-2 border-slate-100 pl-4 py-1">{match.summary}</p>
+                                                
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="space-y-3">
+                                                        <h4 className="text-[9px] font-black uppercase tracking-widest text-emerald-600 flex items-center gap-1.5">
+                                                            <CheckCircle2 className="w-3 h-3" /> Strengths
+                                                        </h4>
+                                                        <ul className="space-y-1.5">
+                                                            {match.strengths?.map((s: string, i: number) => (
+                                                                <li key={i} className="text-[11px] text-slate-700 font-medium leading-tight flex items-start gap-2">
+                                                                    <span className="mt-1 w-1 h-1 rounded-full bg-emerald-400 flex-shrink-0" />
+                                                                    {s}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                    <div className="space-y-3">
+                                                        <h4 className="text-[9px] font-black uppercase tracking-widest text-rose-600 flex items-center gap-1.5">
+                                                            <Award className="w-3 h-3" /> Gaps / Weaknesses
+                                                        </h4>
+                                                        <ul className="space-y-1.5">
+                                                            {match.weaknesses?.map((w: string, i: number) => (
+                                                                <li key={i} className="text-[11px] text-slate-700 font-medium leading-tight flex items-start gap-2">
+                                                                    <span className="mt-1 w-1 h-1 rounded-full bg-rose-400 flex-shrink-0" />
+                                                                    {w}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                </div>
+
+                                                <div className="pt-4 border-t border-slate-50 space-y-3">
+                                                    <h4 className="text-[9px] font-black uppercase tracking-widest text-indigo-600">Certifications Analysis</h4>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {match.matchingCerts?.map((c: string, i: number) => (
+                                                            <span key={i} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded-md border border-indigo-100 flex items-center gap-1">
+                                                                <CheckCircle2 className="w-2.5 h-2.5" /> {c}
+                                                            </span>
+                                                        ))}
+                                                        {match.missingCerts?.map((c: string, i: number) => (
+                                                            <span key={i} className="px-2 py-0.5 bg-slate-50 text-slate-500 text-[10px] font-bold rounded-md border border-slate-200 flex items-center gap-1">
+                                                                <Bot className="w-2.5 h-2.5" /> {c} (Missing)
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
                             </div>
                         ) : result ? (
                             <div className="relative group">

@@ -49,11 +49,19 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
                         <CardTitle className="text-xl font-black">Smart Search</CardTitle>
                         <CardDescription>Search and filter expertise by multidimensional criteria</CardDescription>
                     </div>
-                    <Button variant="outline" onClick={() => {
-                        if(filtered.length === 0) return toast.error("No data to export");
-                        exportToExcelWithPivots(filtered, 'Smart_Search_Results');
-                        toast.success("Excel Report Exported!");
-                    }}>Export to Excel</Button>
+                    <div className="flex gap-2">
+                        <Button variant="ghost" onClick={() => {
+                            setQuery('');
+                            setDiscipline('All');
+                            setMinExp('');
+                            setMaxExp('');
+                        }}>Clear Filters</Button>
+                        <Button variant="outline" onClick={() => {
+                            if(filtered.length === 0) return toast.error("No data to export");
+                            exportToExcelWithPivots(filtered, 'Smart_Search_Results');
+                            toast.success("Excel Report Exported!");
+                        }}>Export to Excel</Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

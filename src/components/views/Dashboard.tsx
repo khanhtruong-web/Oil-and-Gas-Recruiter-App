@@ -11,7 +11,8 @@ import {
     Layers,
     Calendar,
     FileSpreadsheet,
-    Download
+    Download,
+    LogIn
 } from 'lucide-react';
 import { Candidate, ActivityLog } from '../../types';
 import { useAuth } from '../AuthProvider';
@@ -119,11 +120,15 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
     .sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0))
     .slice(0, 5);
 
-  const formatTimestamp = (ts: string) => {
-    const d = new Date(ts);
+  const formatTimestamp = (ts: any) => {
+    if (!ts) return 'just now';
+    const d = ts instanceof Date ? ts : new Date(ts);
+    if (isNaN(d.getTime())) return 'just now';
+    
     const now = new Date();
     const diff = Math.floor((now.getTime() - d.getTime()) / 1000);
     
+    if (diff < 0) return 'just now';
     if (diff < 60) return `${diff}s ago`;
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -136,6 +141,8 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
       case 'status': return <CheckCircle2 className="w-4 h-4" />;
       case 'ai': return <TrendingUp className="w-4 h-4" />;
       case 'export': return <FileSpreadsheet className="w-4 h-4" />;
+      case 'delete': return <Database className="w-4 h-4" />;
+      case 'login': return <LogIn className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };
@@ -146,6 +153,8 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
       case 'status': return 'bg-emerald-500';
       case 'ai': return 'bg-purple-500';
       case 'export': return 'bg-blue-500';
+      case 'delete': return 'bg-rose-500';
+      case 'login': return 'bg-blue-600';
       default: return 'bg-slate-500';
     }
   };
@@ -396,14 +405,20 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
 
         <Card className="xl:col-span-2 border-none shadow-sm shadow-slate-200/50 rounded-2xl">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[13px] font-extrabold flex items-center gap-2 text-slate-900 border-b border-slate-50 pb-4">
-                <Clock className="w-4 h-4 text-indigo-500" />
-                Live Activity Feed
+            <CardTitle className="text-[13px] font-extrabold flex items-center justify-between text-slate-900 border-b border-slate-50 pb-4 w-full">
+                <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-indigo-500" />
+                    Live Activity Feed
+                </div>
+                <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full animate-pulse border border-emerald-100 shadow-sm">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                    <span className="text-[9px] uppercase tracking-tighter font-black">Real-time Sync Active</span>
+                </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
-            <div className="space-y-6 max-h-[350px] overflow-y-auto pr-4 custom-scrollbar">
-              {activities && activities.length > 0 ? activities.slice(0, 10).map((act, i) => (
+            <div className="space-y-6 max-h-[450px] overflow-y-auto pr-4 custom-scrollbar">
+              {activities && activities.length > 0 ? activities.slice(0, 30).map((act, i) => (
                 <div key={act.id || i} className="flex gap-4 relative">
                   {i < activities.length - 1 && (
                     <div className="absolute left-[15px] top-8 bottom-[-24px] w-[2px] bg-slate-50" />
