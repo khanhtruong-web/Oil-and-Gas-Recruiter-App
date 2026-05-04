@@ -12,6 +12,7 @@ import * as XLSX from 'xlsx';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDisciplines } from '../../hooks/useDisciplines';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
+import { exportToExcelWithPivots } from '../../lib/excel-export';
 
 export const PersonnelDirectory = ({ 
     candidates, 
@@ -114,25 +115,8 @@ export const PersonnelDirectory = ({
             return;
         }
 
-        const dataToExport = candidates.map((c, index) => ({
-            'No': index + 1,
-            'Name': c.candidateName,
-            'Discipline': c.discipline,
-            'Experience': c.yearsExp,
-            'Education': c.education,
-            'Industries': c.workFields,
-            'Specialization': c.specializedField,
-            'Email': c.email,
-            'Phone': c.phone,
-            'Status': c.currentStatus,
-            'Added At': c.addedAt && !isNaN(new Date(c.addedAt).getTime()) ? new Date(c.addedAt).toLocaleDateString() : 'N/A'
-        }));
-
-        const ws = XLSX.utils.json_to_sheet(dataToExport);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Personnel_Directory");
-        XLSX.writeFile(wb, "Personnel_Directory.xlsx");
-        toast.success('Exported to Excel successfully!');
+        exportToExcelWithPivots(filteredList, 'Personnel_Directory');
+        toast.success('Exported to Excel with pivot summaries successfully!');
     };
 
     const getInitials = (name: string) => {

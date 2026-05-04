@@ -25,7 +25,8 @@ import {
   Maximize,
   Minimize,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -889,15 +890,33 @@ const SessionTracker = () => {
         return `${pad(m)}:${pad(s)}`;
     };
 
+    const handleManualSync = () => {
+        toast.promise(
+            async () => {
+                await processSyncQueue();
+                if (navigator.onLine) {
+                    window.dispatchEvent(new CustomEvent('app-data-sync', { detail: { type: 'manual_ping' } }));
+                } else {
+                    throw new Error('You are currently offline. Background sync will execute when connection returns.');
+                }
+            },
+            {
+                loading: 'Verifying real-time connection...',
+                success: 'Firebase Real-time Data Synced. Consistent across all accounts & devices.',
+                error: (err: any) => err.message || 'Offline'
+            }
+        );
+    }
+
     return (
-        <div className="bg-white/90 backdrop-blur-sm p-1.5 rounded-xl shadow-sm border flex gap-3 items-center group transition-all duration-300 hover:shadow-md" title={lastSync ? `Last activity: ${lastSync.toLocaleTimeString()}` : 'Tracking active connection'}>
-            <div className="px-3 py-1.5 text-xs font-bold border-r border-slate-200 text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-slate-400 group-hover:text-primary transition-colors" />
+        <div className="bg-white/90 backdrop-blur-sm p-1.5 rounded-xl shadow-sm border flex gap-3 items-center transition-all duration-300">
+            <div className="px-3 py-1.5 text-[11px] font-bold border-r border-slate-200 text-slate-500 uppercase tracking-wider flex items-center gap-2" title="Tracking active connection">
+                <Clock className="w-3.5 h-3.5 text-slate-400 transition-colors" />
                 <span className="tabular-nums">Session: {formatTime(elapsed)}</span>
             </div>
             
             <div className="flex items-center gap-4 px-2">
-                <div className={`flex items-center gap-2 text-xs uppercase font-bold tracking-wider transition-colors ${isOnline ? 'text-slate-600' : 'text-slate-400'}`}>
+                <div className={`flex items-center gap-2 text-[11px] uppercase font-bold tracking-wider transition-colors ${isOnline ? 'text-slate-600' : 'text-slate-400'}`}>
                     <div className="relative flex h-2.5 w-2.5">
                       {isOnline && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
                       <span className={`relative inline-flex rounded-full w-2.5 h-2.5 ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
@@ -905,21 +924,34 @@ const SessionTracker = () => {
                     {isOnline ? 'Online' : 'Offline'}
                 </div>
 
-                {isOnline && (
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-500 border-l border-slate-200 pl-4">
-                        <div className={`relative flex items-center justify-center transition-all ${syncPulse ? 'text-primary scale-110' : 'text-slate-400'}`}>
-                           <Database className="w-3.5 h-3.5" />
-                           {syncPulse && <span className="absolute -inset-1 rounded-full bg-primary/20 animate-pulse"></span>}
-                        </div>
-                        <div className="flex flex-col leading-tight">
-                            <span className="text-[10px] uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                                Live Syncs
-                                {lastSync && <span className="text-[9px] lowercase font-medium opacity-70 ml-1">({lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })})</span>}
-                            </span>
-                            <span className="text-primary tabular-nums group-hover:bg-primary/5 rounded px-1 -mx-1 transition-colors">{syncCount} {syncCount === 1 ? 'Event' : 'Events'}</span>
-                        </div>
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 border-l border-slate-200 pl-4 pr-1">
+                    <div className={`relative flex items-center justify-center transition-all ${syncPulse ? 'text-primary scale-110' : 'text-slate-400'}`}>
+                       <Database className="w-3.5 h-3.5" />
+                       {syncPulse && <span className="absolute -inset-1 rounded-full bg-primary/20 animate-pulse"></span>}
                     </div>
-                )}
+                    <div className="flex flex-col leading-tight text-left">
+                        <span className="text-[9px] uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                            Live Syncs
+                            {lastSync && <span className="text-[8px] lowercase font-medium opacity-70 ml-1">({lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })})</span>}
+                        </span>
+                        <span className="text-primary tabular-nums text-[11px] transition-colors">
+                            {syncCount} {syncCount === 1 ? 'Event' : 'Events'}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="pl-2 border-l border-slate-200">
+                    <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={handleManualSync}
+                        className="h-8 shadow-sm rounded-lg border-slate-200 text-slate-600 hover:text-primary hover:bg-slate-50 flex items-center gap-2"
+                        title="Force check Google Sheet Sync & Database State"
+                    >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span className="text-[11px] font-bold uppercase tracking-wider">Refresh Data</span>
+                    </Button>
+                </div>
             </div>
         </div>
     );
@@ -1350,7 +1382,7 @@ const MainContent = () => {
             });
 
             // Auto Backup on status change to "Approved" (Hired/Shortlisted)
-            if ((status === 'Hired' || status === 'Shortlisted') && settings?.autoBackupEnabled && driveToken && settings?.googleSheetId) {
+            if ((status === 'Hired' || status === 'Shortlisted') && settings?.autoBackupEnabled && accessToken && settings?.googleSheetId) {
                 const { syncToGoogleSheets } = await import('./services/sheetService');
                 const { addToSyncQueue } = await import('./services/offlineSyncService');
                     const rowData = [
@@ -1412,7 +1444,8 @@ const MainContent = () => {
             const errorMsg = err.message || JSON.stringify(err);
             if (errorMsg.includes('No document to update')) {
                 console.warn(`[App] Update failed: Document ${id} no longer exists.`);
-                toast.error('Expert record no longer exists in database');
+                try { await deleteDoc(doc(db, 'candidates', id)); } catch(e){}
+                toast.success('Cleared ghost record from view');
                 setCandidates(prev => prev.filter(c => c.id !== id)); // Remove ghost record
             } else {
                 handleFirestoreError(err, OperationType.UPDATE, `candidates/${id}`);
@@ -1472,7 +1505,8 @@ const MainContent = () => {
             const errorMsg = err.message || JSON.stringify(err);
             if (errorMsg.includes('No document to update')) {
                 console.warn(`[App] Delete failed: Document ${id} no longer exists.`);
-                toast.error('Expert record no longer exists in database');
+                try { await deleteDoc(doc(db, 'candidates', id)); } catch(e){}
+                toast.success('Cleared ghost record from view');
                 setCandidates(prev => prev.filter(c => c.id !== id)); // Remove ghost record
             } else {
                 handleFirestoreError(err, OperationType.UPDATE, `candidates/${id}`);

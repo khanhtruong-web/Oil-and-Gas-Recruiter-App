@@ -19,6 +19,7 @@ import { useDisciplines } from '../../hooks/useDisciplines';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
+import { exportToExcelWithPivots } from '../../lib/excel-export';
 
 export const Dashboard = ({ candidates, activities }: { candidates: Candidate[], activities: ActivityLog[] }) => {
   const { profile } = useAuth();
@@ -109,38 +110,8 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
       toast.error("No data to export (check filters)");
       return;
     }
-    const dataToExport = filteredCandidates.map((c, i) => ({
-      'No': i + 1,
-      'Candidate Name': c.candidateName,
-      'Experience (Yrs)': c.yearsExp,
-      'Discipline': c.discipline,
-      'Specialized Field': c.specializedField || 'N/A',
-      'Work Fields': c.workFields || 'N/A',
-      'Status': c.currentStatus,
-      'AI Score': c.aiScore || 0,
-      'Added Date': c.addedAt ? new Date(c.addedAt).toLocaleDateString() : 'N/A'
-    }));
-    
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
-    
-    // Add some styling to header (XLSX doesn't support easy styling in non-pro, but we can set column widths)
-    const wscols = [
-      { wch: 5 },
-      { wch: 30 },
-      { wch: 15 },
-      { wch: 20 },
-      { wch: 25 },
-      { wch: 40 },
-      { wch: 15 },
-      { wch: 10 },
-      { wch: 15 },
-    ];
-    ws['!cols'] = wscols;
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Candidates");
-    XLSX.writeFile(wb, `CV_Analysis_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
-    toast.success('Dashboard report exported successfully!');
+    exportToExcelWithPivots(filteredCandidates, 'Dashboard_Analytics');
+    toast.success('Dashboard report exported with pivot summaries!');
   };
 
   const topCandidates = [...filteredCandidates]

@@ -22,6 +22,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { handleFirestoreError, OperationType } from '../../lib/firestore-error';
+import { exportToExcelWithPivots } from '../../lib/excel-export';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -207,31 +208,20 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
 
     const exportToCSV = () => {
         if (extractedList.length === 0) return;
-        const headers = ["NO", "CV FILE NAME", "CANDIDATE NAME", "EMAIL", "PHONE", "EXP", "EDUCATION", "WORK FIELDS", "SPECIALIZED FIELD", "DISCIPLINE"];
-        const rows = extractedList.map((cv, index) => [
-            index + 1,
-            `"${cv.fileName}"`,
-            `"${cv.candidateName}"`,
-            `"${cv.email || 'N/A'}"`,
-            `"${cv.phone || 'N/A'}"`,
-            cv.yearsExp,
-            `"${cv.education || "N/A"}"`,
-            `"${cv.workFields || "N/A"}"`,
-            `"${cv.specializedField || "N/A"}"`,
-            `"${cv.discipline}"`
-        ]);
+        // Transform Partial<Candidate> to robust Candidate for Pivot function
+        const dataToExport = extractedList.map(c => ({
+            candidateName: c.candidateName || 'Unknown',
+            yearsExp: c.yearsExp || 0,
+            discipline: c.discipline || 'Uncategorized',
+            specializedField: c.specializedField || '',
+            workFields: c.workFields || '',
+            currentStatus: 'New', // default for new extractions
+            aiScore: 0,
+            addedAt: new Date().toISOString()
+        })) as Candidate[];
         
-        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", `cv_results_${new Date().getTime()}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('Exported to CSV');
+        exportToExcelWithPivots(dataToExport, 'CV_Analysis_Results');
+        toast.success('Exported to Excel with pivot summaries');
     };
 
     const copyToClipboard = () => {
@@ -360,10 +350,7 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
                                                 <Copy className="w-4 h-4 mr-2" /> Copy
                                             </Button>
                                             <Button variant="ghost" size="sm" className="h-9 px-4 font-bold text-slate-700 hover:bg-slate-50" onClick={exportToCSV}>
-                                                <FileDown className="w-4 h-4 mr-2" /> CSV
-                                            </Button>
-                                            <Button variant="ghost" size="sm" className="h-9 px-4 font-bold text-slate-700 hover:bg-slate-50" onClick={exportToCSV}>
-                                                <FileSpreadsheet className="w-4 h-4 mr-2" /> Excel
+                                                <FileSpreadsheet className="w-4 h-4 mr-2" /> Export Excel
                                             </Button>
                                         </div>
 

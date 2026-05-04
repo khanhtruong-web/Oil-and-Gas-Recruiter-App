@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
+import { exportToExcelWithPivots } from '../../lib/excel-export';
+import { toast } from 'sonner';
 
 interface SmartSearchProps {
     candidates: Candidate[];
@@ -42,9 +44,16 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
             <Card className="border-none shadow-sm">
-                <CardHeader>
-                    <CardTitle className="text-xl font-black">Smart Search</CardTitle>
-                    <CardDescription>Search and filter expertise by multidimensional criteria</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle className="text-xl font-black">Smart Search</CardTitle>
+                        <CardDescription>Search and filter expertise by multidimensional criteria</CardDescription>
+                    </div>
+                    <Button variant="outline" onClick={() => {
+                        if(filtered.length === 0) return toast.error("No data to export");
+                        exportToExcelWithPivots(filtered, 'Smart_Search_Results');
+                        toast.success("Excel Report Exported!");
+                    }}>Export to Excel</Button>
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

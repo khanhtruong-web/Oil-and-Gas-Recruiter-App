@@ -21,8 +21,8 @@ import {
 import { Candidate } from '../../types';
 import { useDisciplines } from '../../hooks/useDisciplines';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
+import { exportToExcelWithPivots } from '../../lib/excel-export';
 
 export const ReportsView = ({ candidates }: { candidates: Candidate[] }) => {
     const { disciplines: catalogDisciplines } = useDisciplines();
@@ -52,37 +52,8 @@ export const ReportsView = ({ candidates }: { candidates: Candidate[] }) => {
             return;
         }
 
-        const wb = XLSX.utils.book_new();
-
-        // Sheet 1: Pipeline Summary
-        const wsPipeline = XLSX.utils.json_to_sheet(pipelineData.map(p => ({
-            'Status': p.name,
-            'Candidate Count': p.count
-        })));
-        XLSX.utils.book_append_sheet(wb, wsPipeline, "Pipeline_Summary");
-
-        // Sheet 2: Discipline Analytics (Pivot-like)
-        const wsDiscipline = XLSX.utils.json_to_sheet(disciplineData.map(d => ({
-            'Discipline': d.discipline,
-            'Total Candidates': d.count,
-            'Average Experience (Yrs)': d.avgExp
-        })));
-        XLSX.utils.book_append_sheet(wb, wsDiscipline, "Discipline_Analytics");
-
-        // Sheet 3: Raw Data
-        const wsRaw = XLSX.utils.json_to_sheet(candidates.map((c, i) => ({
-            'No': i + 1,
-            'Name': c.candidateName,
-            'Discipline': c.discipline,
-            'Experience (Yrs)': c.yearsExp,
-            'Status': c.currentStatus,
-            'AI Score': c.aiScore || 0,
-            'Added At': c.addedAt && !isNaN(new Date(c.addedAt).getTime()) ? new Date(c.addedAt).toLocaleDateString() : 'N/A'
-        })));
-        XLSX.utils.book_append_sheet(wb, wsRaw, "Raw_Data");
-
-        XLSX.writeFile(wb, `CV_Reports_${new Date().toISOString().slice(0,10)}.xlsx`);
-        toast.success("Excel Report Exported!");
+        exportToExcelWithPivots(candidates, 'CV_Reports');
+        toast.success("Excel Report with pivots exported!");
     };
 
     return (
