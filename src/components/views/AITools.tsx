@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Candidate } from '../../types';
 import { geminiService } from '../../services/geminiService';
 import { toast } from 'sonner';
-import { Loader2, Bot, CheckCircle2, Award, TrendingUp, Download } from 'lucide-react';
+import { Loader2, Bot, CheckCircle2, Award, TrendingUp, Download, Sparkles } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
@@ -13,7 +13,7 @@ import { saveAs } from 'file-saver';
 export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
     const [selectedId, setSelectedId] = useState<string>('');
     const [jobDescription, setJobDescription] = useState<string>('');
-    const [activeTool, setActiveTool] = useState<'spellcheck' | 'review' | 'suggest'>('spellcheck');
+    const [activeTool, setActiveTool] = useState<'spellcheck' | 'review' | 'suggest' | 'match'>('spellcheck');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<string>('');
 
@@ -87,19 +87,24 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
     const runAnalysis = async () => {
         let cv = null;
         
-        if (activeTool !== 'suggest' || (activeTool === 'suggest' && !jobDescription)) {
+        if (activeTool === 'match') {
+            if (!jobDescription) return toast.error('Please enter a Job Description first');
+            if (candidates.length === 0) return toast.error('No candidates available to match against');
+        } else {
             if (!selectedId) return toast.error('Please select a CV first');
             cv = candidates.find(c => c.id === selectedId);
             if (!cv?.rawText) return toast.error('No CV text available for this candidate');
         }
-
-        if (activeTool === 'suggest' && jobDescription && candidates.length === 0) {
-            return toast.error('No candidates available to match against');
-        }
         
         setLoading(true);
         try {
-            const res = await geminiService.analyzeCV(cv?.rawText || "", activeTool, jobDescription, candidates);
+            // If match mode, pass candidates. If suggest (tips), don't pass candidates so Gemini knows to treat it as single CV improvement
+            const res = await geminiService.analyzeCV(
+                cv?.rawText || "", 
+                activeTool, 
+                jobDescription, 
+                activeTool === 'match' ? candidates : undefined
+            );
             setResult(res);
         } catch (e) {
             toast.error('AI Analysis failed');
@@ -111,12 +116,13 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
     const tools = [
         { id: 'spellcheck', label: 'Spellcheck', desc: 'AI-powered English grammar & spelling review', icon: CheckCircle2, bg: 'from-blue-500 to-blue-600' },
         { id: 'review', label: 'AI Review', desc: 'Strengths, weaknesses, certs & JD matching', icon: Award, bg: 'from-indigo-500 to-indigo-600' },
-        { id: 'suggest', label: 'Candidate Suggestions', desc: 'Find best CVs for a Job Description', icon: TrendingUp, bg: 'from-emerald-500 to-emerald-600' },
+        { id: 'suggest', label: 'Improvement Tips', desc: 'Feedback to enhance CV clarity & keywords', icon: Sparkles, bg: 'from-purple-500 to-purple-600' },
+        { id: 'match', label: 'Candidate Matcher', desc: 'Find best CVs for a Job Description', icon: TrendingUp, bg: 'from-emerald-500 to-emerald-600' },
     ];
 
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6`}>
                 {tools.map(tool => (
                     <Card 
                         key={tool.id}
@@ -198,7 +204,7 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
                         </button>
                     </div>
                     <div className="flex flex-col md:flex-row gap-4">
-                        {!(activeTool === 'suggest' && jobDescription) && (
+                        {activeTool !== 'match' && (
                             <Select value={selectedId} onValueChange={setSelectedId}>
                                 <SelectTrigger className="flex-1 h-12 bg-slate-50 border-slate-200 font-medium">
                                     <SelectValue placeholder="— Select a candidate's CV —" />
@@ -213,7 +219,7 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
                         <Button 
                             className="h-12 px-8 font-black tracking-widest uppercase text-[11px]" 
                             onClick={runAnalysis}
-                            disabled={loading || (!(activeTool === 'suggest' && jobDescription) && !selectedId)}
+                            disabled={loading || (activeTool === 'match' ? !jobDescription : !selectedId)}
                         >
                             {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Bot className="w-4 h-4 mr-2" />}
                             Run {tools.find(t => t.id === activeTool)?.label}

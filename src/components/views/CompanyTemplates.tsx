@@ -46,7 +46,7 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
         if (!user) return;
         const q = query(collection(db, 'templates'), where('ownerId', '==', user.uid));
         const unsub = onSnapshot(q, (snap) => {
-            const temps = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as CompanyTemplate));
+            const temps = snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as CompanyTemplate));
             setCustomTemplates(temps);
         }, (error) => {
             handleFirestoreError(error, OperationType.LIST, 'templates');

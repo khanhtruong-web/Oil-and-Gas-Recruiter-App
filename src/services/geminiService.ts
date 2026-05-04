@@ -73,7 +73,13 @@ class GeminiService {
     try {
       const response = await this.ai.models.generateContent({
         model: this.modelName,
-        contents: `Act as a professional recruiter. Extract structured data from this CV text:\n\n${text.substring(0, 30000)}`,
+        contents: `Act as a professional recruiter. Extract structured data from this CV text.
+For 'professionalSummary' (Pitch Summary), you MUST generate a comprehensive professional bio that explicitly includes:
+- A brief overview of their primary expertise/field (what they have the most experience doing).
+- Notable certifications (if any).
+- Details about their most recent project or role.
+
+CV TEXT:\n\n${text.substring(0, 30000)}`,
         config: {
           responseMimeType: "application/json",
           responseSchema: this.CV_PARSER_SCHEMA,
@@ -133,14 +139,14 @@ ${rawText.substring(0, 30000)}`,
     }
   }
 
-  async analyzeCV(text: string, mode: 'spellcheck' | 'review' | 'suggest', jobDescription?: string, allCandidates?: Candidate[]): Promise<string> {
+  async analyzeCV(text: string, mode: 'spellcheck' | 'review' | 'suggest' | 'match', jobDescription?: string, allCandidates?: Candidate[]): Promise<string> {
     if (!this.ai) await this.initClient();
     if (!this.ai) throw new Error("API Key logic failed: Gemini API key is required.");
     
     let prompt = "";
     let contents = "";
 
-    if (mode === 'suggest' && allCandidates && jobDescription) {
+    if (mode === 'match' && allCandidates && jobDescription) {
       prompt = `Act as an expert technical recruiter matching CVs against a Job Description.
 Please find the best matching candidates for the following Job Description out of the provided list of candidates. 
 For each top candidate, explain why they are a good fit, their scores against the JD, and explicitly list matching and missing certificates.
@@ -173,8 +179,8 @@ ${jobDescription.substring(0, 10000)}
         }
       } else if (mode === 'suggest') {
         prompt = jobDescription 
-          ? `Suggest specific content improvements to make this CV more professional and a better fit for the following Job Description.\n\nJOB DESCRIPTION:\n${jobDescription.substring(0, 10000)}`
-          : "Suggest specific content improvements to make this CV more professional for offshore bidding.";
+          ? `Suggest specific content improvements to make this CV more professional and a better fit for the following Job Description. Provide actionable feedback to enhance the CV's clarity, impact, and keyword optimization.\n\nJOB DESCRIPTION:\n${jobDescription.substring(0, 10000)}`
+          : "Suggest specific content improvements to make this CV more professional. Provide actionable feedback on how to enhance the CV's clarity, impact, and keyword optimization for offshore bidding.";
       }
       contents = `${prompt}\n\nCV TEXT:\n${text}`;
     }

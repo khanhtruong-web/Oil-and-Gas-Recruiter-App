@@ -1086,8 +1086,8 @@ const MainContent = () => {
                     return String(val || '');
                 };
                 return { 
-                    id: doc.id, 
                     ...data,
+                    id: doc.id,
                     addedAt: convertDate(data.addedAt),
                     updatedAt: convertDate(data.updatedAt)
                 };
@@ -1381,6 +1381,21 @@ const MainContent = () => {
                 updatedAt: serverTimestamp()
             });
 
+            // Auto Move file in Drive if it exists
+            if ((status === 'Hired' || status === 'Shortlisted') && accessToken && cand.driveFileId && settings?.driveRootFolderId) {
+                try {
+                    const { findOrCreateFolder, moveFile } = await import('./services/driveService');
+                    const targetFolderId = await findOrCreateFolder(cand.discipline || 'Uncategorized', settings.driveRootFolderId);
+                    if (targetFolderId) {
+                        await moveFile(cand.driveFileId, targetFolderId);
+                        toast.success(`Google Drive: CV moved to /${cand.discipline || 'Uncategorized'}`);
+                    }
+                } catch (e: any) {
+                    console.error("Failed to move file in Drive:", e);
+                    toast.error(`Drive Error: Could not move CV - ${e.message}`);
+                }
+            }
+
             // Auto Backup on status change to "Approved" (Hired/Shortlisted)
             if ((status === 'Hired' || status === 'Shortlisted') && settings?.autoBackupEnabled && accessToken && settings?.googleSheetId) {
                 const { syncToGoogleSheets } = await import('./services/sheetService');
@@ -1466,6 +1481,21 @@ const MainContent = () => {
                 discipline: discipline,
                 updatedAt: serverTimestamp()
             });
+            
+            // If the candidate is Hired/Shortlisted, their file in Google Drive should be moved to the new discipline folder
+            if ((cand?.currentStatus === 'Hired' || cand?.currentStatus === 'Shortlisted' || (cand as any)?.status === 'Hired' || (cand as any)?.status === 'Shortlisted') && accessToken && cand.driveFileId && settings?.driveRootFolderId) {
+                try {
+                    const { findOrCreateFolder, moveFile } = await import('./services/driveService');
+                    const targetFolderId = await findOrCreateFolder(discipline || 'Uncategorized', settings.driveRootFolderId);
+                    if (targetFolderId) {
+                        await moveFile(cand.driveFileId, targetFolderId);
+                        toast.success(`Google Drive: CV moved to /${discipline || 'Uncategorized'}`);
+                    }
+                } catch (e: any) {
+                    console.error("Failed to move file in Drive when discipline changed:", e);
+                }
+            }
+
             await logActivity(`Updated discipline to [${discipline}] for: ${cand?.candidateName}`);
             toast.success('Discipline updated');
         } catch (err: any) {
