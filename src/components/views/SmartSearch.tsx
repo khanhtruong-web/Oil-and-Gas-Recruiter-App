@@ -8,6 +8,7 @@ import { useDisciplines } from '../../hooks/useDisciplines';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 
 interface SmartSearchProps {
     candidates: Candidate[];
@@ -22,6 +23,7 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
     const [minExp, setMinExp] = useState<string>('');
     const [maxExp, setMaxExp] = useState<string>('');
     const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+    const [confirmDialog, setConfirmDialog] = useState<{title: string, message: string, onConfirm: () => void} | null>(null);
 
     const filtered = candidates.filter(cv => {
         const cs = cv.currentStatus?.toLowerCase() || (cv as any).status?.toLowerCase();
@@ -125,7 +127,11 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
                                                         className="text-red-500 hover:text-red-600 hover:bg-red-50"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            if (confirm(`Delete ${c.candidateName}?`)) onDelete(c.id);
+                                                            setConfirmDialog({
+                                                                title: 'Are you sure?',
+                                                                message: `Move ${c.candidateName} to trash?`,
+                                                                onConfirm: () => onDelete(c.id!)
+                                                            });
                                                         }}
                                                         title="Delete Candidate"
                                                     >
@@ -201,6 +207,14 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
                     )}
                 </DialogContent>
             </Dialog>
+            
+            <ConfirmModal 
+                isOpen={!!confirmDialog}
+                title={confirmDialog?.title || ''}
+                message={confirmDialog?.message || ''}
+                onConfirm={() => confirmDialog?.onConfirm()}
+                onCancel={() => setConfirmDialog(null)}
+            />
         </div>
     );
 };

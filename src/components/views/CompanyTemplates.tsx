@@ -13,6 +13,7 @@ import { collection, onSnapshot, query, where, addDoc, deleteDoc, doc, serverTim
 import { handleFirestoreError, OperationType } from '../../lib/firestore-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 
 const PRESET_TEMPLATES: CompanyTemplate[] = [
     { id: 'petrobras', name: 'Petrobras', color: '#00AEEF', accent: '#005f8a', logo: '🏭', country: 'Brazil' },
@@ -38,6 +39,7 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
     const [mappedData, setMappedData] = useState<Record<string, any>>({});
     const [editingCandidate, setEditingCandidate] = useState<Partial<Candidate>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [confirmDialog, setConfirmDialog] = useState<{title: string, message: string, onConfirm: () => void} | null>(null);
 
     // Fetch custom templates
     useEffect(() => {
@@ -155,9 +157,8 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
         }
     };
 
-    const handleDeleteTemplate = async (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!confirm('Are you sure you want to delete this custom template?')) return;
+    const handleDeleteTemplate = async (id: string, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
         const path = `templates/${id}`;
         try {
             await deleteDoc(doc(db, 'templates', id));
@@ -215,7 +216,14 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
                         
                         {t.isCustom && (
                             <button 
-                                onClick={(e) => handleDeleteTemplate(t.id, e)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setConfirmDialog({
+                                        title: 'Are you sure?',
+                                        message: `Do you want to delete the ${t.name} template?`,
+                                        onConfirm: () => handleDeleteTemplate(t.id)
+                                    });
+                                }}
                                 className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                             >
                                 <Trash2 className="w-3 h-3" />
@@ -497,6 +505,14 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
                     )}
                 </CardContent>
             </Card>
+
+            <ConfirmModal 
+                isOpen={!!confirmDialog}
+                title={confirmDialog?.title || ''}
+                message={confirmDialog?.message || ''}
+                onConfirm={() => confirmDialog?.onConfirm()}
+                onCancel={() => setConfirmDialog(null)}
+            />
         </div>
     );
 };

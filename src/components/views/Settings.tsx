@@ -314,23 +314,6 @@ export const Settings = () => {
                             </CardTitle>
                             <div className="flex gap-2">
                                 {(profile?.role === 'Admin' || profile?.role === 'Recruiter' || !profile) && (
-                                    <Button variant="outline" size="sm" onClick={async () => {
-                                        if (!settings?.driveRootFolderId) return toast.error('Check Drive configuration');
-                                        const { findOrCreateFolder } = await import('../../services/driveService');
-                                        toast.loading('Syncing discipline folders...', { id: 'disc-sync' });
-                                        try {
-                                            for (const d of disciplineDetails) {
-                                                await findOrCreateFolder(d.name, settings.driveRootFolderId);
-                                            }
-                                            toast.success('Discipline folders synchronized', { id: 'disc-sync' });
-                                        } catch (e: any) {
-                                            toast.error('Sync failed: ' + e.message, { id: 'disc-sync' });
-                                        }
-                                    }} className="h-8 shadow-sm rounded-lg border-slate-200">
-                                        <Cloud className="w-4 h-4 mr-1" /> Sync Folders
-                                    </Button>
-                                )}
-                                {(profile?.role === 'Admin' || profile?.role === 'Recruiter' || !profile) && (
                                     <Button variant="outline" size="sm" onClick={handleAddDiscipline} className="h-8 shadow-sm rounded-lg border-slate-200">
                                         <Plus className="w-4 h-4 mr-1" /> Add
                                     </Button>

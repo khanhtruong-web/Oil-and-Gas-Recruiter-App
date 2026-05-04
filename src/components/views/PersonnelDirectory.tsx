@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDisciplines } from '../../hooks/useDisciplines';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 
 export const PersonnelDirectory = ({ 
     candidates, 
@@ -31,6 +32,8 @@ export const PersonnelDirectory = ({
     const [dateFrom, setDateFrom] = useState<string>('');
     const [dateTo, setDateTo] = useState<string>('');
     const { disciplineDetails } = useDisciplines();
+    
+    const [confirmDialog, setConfirmDialog] = useState<{title: string, message: string, onConfirm: () => void} | null>(null);
     
     const filteredList: Candidate[] = candidates.filter(c => {
         const cs = c.currentStatus?.toLowerCase() || (c as any).status?.toLowerCase();
@@ -156,7 +159,15 @@ export const PersonnelDirectory = ({
                         </TabsList>
                     </Tabs>
                     {viewTab === 'trash' && onEmptyTrash && (
-                        <Button variant="outline" onClick={onEmptyTrash} className="font-bold text-xs uppercase tracking-wider text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 rounded-lg h-9">
+                        <Button 
+                            variant="outline" 
+                            className="font-bold text-xs uppercase tracking-wider text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 rounded-lg h-9"
+                            onClick={() => setConfirmDialog({
+                                title: 'Empty Trash?',
+                                message: 'Are you sure you want to permanently delete all records in the trash? This cannot be undone.',
+                                onConfirm: onEmptyTrash
+                            })}
+                        >
                             <HardDrive className="w-4 h-4 mr-2" />
                             Empty Trash
                         </Button>
@@ -237,7 +248,20 @@ export const PersonnelDirectory = ({
                                     <SelectItem value="Rejected">Rejected</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50 rounded-lg" onClick={handleBulkDelete}>
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-red-600 border-red-200 hover:bg-red-50 rounded-lg"
+                                onClick={() => setConfirmDialog({
+                                    title: 'Are you sure?',
+                                    message: `This will delete ${selectedIds.length} records.`,
+                                    onConfirm: () => {
+                                        selectedIds.forEach(id => onDelete(id));
+                                        setSelectedIds([]);
+                                        toast.info('Records deleted');
+                                    }
+                                })}
+                            >
                                 <Trash2 className="w-4 h-4 mr-2" /> Delete
                             </Button>
                         </div>
@@ -410,12 +434,11 @@ export const PersonnelDirectory = ({
                                             )}
                                             <button 
                                                 className="w-8 h-8 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 inline-flex items-center justify-center transition-colors"
-                                                onClick={() => {
-                                                    const isTrash = c.currentStatus?.toLowerCase() === 'deleted';
-                                                    if(confirm(isTrash ? 'Permanently remove this record?' : 'Move this record to trash?')) {
-                                                        onDelete(c.id!);
-                                                    }
-                                                }}
+                                                onClick={() => setConfirmDialog({
+                                                    title: 'Are you sure?',
+                                                    message: c.currentStatus?.toLowerCase() === 'deleted' ? 'Permanently remove this record?' : 'Move this record to trash?',
+                                                    onConfirm: () => onDelete(c.id!)
+                                                })}
                                                 title={c.currentStatus?.toLowerCase() === 'deleted' ? 'Purge' : 'Delete'}
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -463,6 +486,14 @@ export const PersonnelDirectory = ({
                     </div>
                 )}
             </CardContent>
+            
+            <ConfirmModal 
+                isOpen={!!confirmDialog}
+                title={confirmDialog?.title || ''}
+                message={confirmDialog?.message || ''}
+                onConfirm={() => confirmDialog?.onConfirm()}
+                onCancel={() => setConfirmDialog(null)}
+            />
         </Card>
     );
 };

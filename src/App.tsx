@@ -1343,66 +1343,6 @@ const MainContent = () => {
                 return;
             }
             
-            // Transaction: 1. Move to discipline folder if Approved
-            let driveToken = accessToken;
-            if ((status === 'Hired' || status === 'Shortlisted') && !driveToken && authorizeDrive) {
-                try {
-                    driveToken = await authorizeDrive();
-                } catch(e) {
-                    console.warn("Drive auth failed", e);
-                }
-            }
-
-            let currentRootId = settings?.driveRootFolderId;
-            if ((status === 'Hired' || status === 'Shortlisted') && driveToken && !currentRootId && cand?.driveFileId) {
-                try {
-                    toast.loading('Creating Drive Root Folder...', { id: 'drive-move' });
-                    const { findOrCreateFolder } = await import('./services/driveService');
-                    currentRootId = await findOrCreateFolder('OilGas_CV_Management_2026', undefined);
-                    if (currentRootId) {
-                        await setDoc(doc(db, 'settings', user!.uid), { driveRootFolderId: currentRootId }, { merge: true });
-                        toast.success('Drive Root Folder Auto-Created', { id: 'drive-move' });
-                    }
-                } catch(e: any) {
-                    toast.error('Could not auto-create root folder: ' + e.message, { id: 'drive-move' });
-                }
-            }
-
-            if ((status === 'Hired' || status === 'Shortlisted') && driveToken && currentRootId && cand?.driveFileId) {
-                try {
-                    toast.loading('Moving CV to Discipline folder...', { id: 'drive-move' });
-                    const extMatch = (cand.fileName || '').match(/(\.[^.]+)$/);
-                    const ext = extMatch ? extMatch[1] : '';
-                    const safeFolderName = getSafeDisciplineFolderName(cand.discipline || 'Uncategorized');
-                    const newFileName = getApprovedFileName(cand.candidateName, cand.discipline || 'Uncategorized', ext);
-                    
-                    const { findOrCreateFolder, moveFile, renameFile } = await import('./services/driveService');
-                    
-                    const disciplineFolderId = await findOrCreateFolder(safeFolderName, currentRootId);
-                    
-                    // Create subfolders
-                    await findOrCreateFolder('Contracts', disciplineFolderId);
-                    await findOrCreateFolder('Projects', disciplineFolderId);
-                    
-                    await renameFile(cand.driveFileId, newFileName);
-                    await moveFile(cand.driveFileId, disciplineFolderId);
-                    
-                    toast.success('CV moved to ' + (cand.discipline || 'Uncategorized') + ' folder', { id: 'drive-move' });
-                } catch (e: any) {
-                    if (!e.message?.includes('AUTH_REQUIRED')) {
-                         console.error("Drive move failed", e);
-                    }
-                    if (e.message?.includes('AUTH_REQUIRED')) {
-                        toast.error('Google Authentication Required', { 
-                            id: 'drive-move',
-                            description: 'Please reconnect your Google account in Settings to move files.'
-                        });
-                    } else {
-                        toast.error('Failed to move CV to Drive: ' + e.message, { id: 'drive-move' });
-                    }
-                }
-            }
-            
             await updateDoc(doc(db, 'candidates', id), {
                 currentStatus: status,
                 status: status,
@@ -1553,10 +1493,6 @@ const MainContent = () => {
 
         if (trashCandidates.length === 0) {
             toast.info('Trash is already empty');
-            return;
-        }
-
-        if (!confirm(`Are you sure you want to permanently delete all ${trashCandidates.length} records in the trash? This cannot be undone.`)) {
             return;
         }
 
