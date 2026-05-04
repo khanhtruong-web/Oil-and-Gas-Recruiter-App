@@ -480,9 +480,9 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - __dirname is not defined in ES module scope if we were running raw
-    const distPath = path.join(process.cwd(), 'dist');
+    // In production, this file is compiled to dist/server.cjs
+    // So __dirname will be the dist directory itself.
+    const distPath = __dirname;
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
