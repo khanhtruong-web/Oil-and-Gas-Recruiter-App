@@ -125,14 +125,13 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
     const d = ts instanceof Date ? ts : new Date(ts);
     if (isNaN(d.getTime())) return 'just now';
     
-    const now = new Date();
-    const diff = Math.floor((now.getTime() - d.getTime()) / 1000);
-    
-    if (diff < 0) return 'just now';
-    if (diff < 60) return `${diff}s ago`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return d.toLocaleDateString();
+    return d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const getActivityIcon = (type: string) => {

@@ -1179,7 +1179,7 @@ const MainContent = () => {
     useEffect(() => {
         if (user && profile && settings && accessToken && !hasLoggedLoginRef.current) {
             hasLoggedLoginRef.current = true;
-            logActivity('Logged into the application', 'login');
+            logActivity(`${profile?.email || user?.email} logged into the application`, 'login');
         }
     }, [user, profile, settings, accessToken]);
 
@@ -1672,21 +1672,21 @@ const MainContent = () => {
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden">
       {/* Sidebar Navigation */}
-      <aside className={`${sidebarCollapsed ? 'w-20' : 'w-72'} bg-[#0b1224] text-white flex flex-col shrink-0 transition-all duration-300 ease-in-out relative group/sidebar border-r border-white/5`}>
+      <aside className={`${sidebarCollapsed ? 'w-20' : 'w-72'} bg-[#0a0f1c] text-white flex flex-col shrink-0 transition-all duration-300 ease-in-out relative group/sidebar border-r border-white/5`}>
         <div className={`p-8 flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!sidebarCollapsed && (
             <div className="flex items-center gap-4">
-              <div className="p-2.5 bg-slate-800 rounded-2xl ring-1 ring-white/10 shadow-xl">
+              <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl ring-1 ring-white/20 shadow-xl shadow-blue-900/20">
                 <Users className="w-6 h-6 text-white" />
               </div>
               <div className="flex flex-col">
                 <span className="text-xl font-black tracking-tight leading-none text-white">Expertise</span>
-                <span className="text-[9px] uppercase font-black text-blue-400/60 tracking-[0.2em] mt-1.5">Manager V2</span>
+                <span className="text-[9px] uppercase font-black text-blue-400 tracking-[0.2em] mt-1.5 drop-shadow-sm">Manager V2</span>
               </div>
             </div>
           )}
           {sidebarCollapsed && (
-             <div className="p-2.5 bg-slate-800 rounded-2xl ring-1 ring-white/10">
+             <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl ring-1 ring-white/20 shadow-xl shadow-blue-900/20">
                 <Users className="w-6 h-6 text-white" />
              </div>
           )}
@@ -1694,45 +1694,47 @@ const MainContent = () => {
 
         <nav className="flex-1 px-4 py-4 space-y-8 overflow-y-auto custom-scrollbar scrollbar-hide">
           {menuSections.map(section => (
-            <div key={section.title} className="space-y-3">
+            <div key={section.title} className="space-y-2">
               {!sidebarCollapsed && (
-                <p className="px-5 text-[10px] font-black uppercase text-blue-400/40 tracking-[0.3em] mb-4">
+                <p className="px-5 text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] mb-4">
                   {section.title}
                 </p>
               )}
-              {section.items.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    item.action ? item.action() : setActiveTab(item.id);
-                  }}
-                  className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-200 group relative ${
-                    activeTab === item.id 
-                    ? 'bg-white/5 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]' 
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.03]'
-                  }`}
-                  title={sidebarCollapsed ? item.label : ''}
-                >
-                  {/* Active Indicator */}
-                  {activeTab === item.id && (
-                    <div className="absolute left-0 w-1 h-6 bg-primary rounded-r-full" />
-                  )}
-                  
-                  <item.icon className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${activeTab === item.id ? 'text-primary' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                  
-                  {!sidebarCollapsed && (
-                    <span className={`text-[14px] font-black tracking-tight ${activeTab === item.id ? 'text-white' : 'text-slate-400'}`}>
-                      {item.label}
-                    </span>
-                  )}
-                  
-                  {!sidebarCollapsed && item.id === 'personnel' && candidates.length > 0 && (
-                    <span className={`ml-auto px-2 py-0.5 rounded text-[10px] font-black ${activeTab === item.id ? 'bg-primary text-white' : 'bg-slate-800 text-slate-500'}`}>
-                      {candidates.length}
-                    </span>
-                  )}
-                </button>
-              ))}
+              {section.items.map(item => {
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      if (item.action) {
+                        item.action();
+                      } else {
+                        setActiveTab(item.id);
+                      }
+                    }}
+                    className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-300 group relative ${
+                      isActive
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/20' 
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    }`}
+                    title={sidebarCollapsed ? item.label : ''}
+                  >
+                    <item.icon className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                    
+                    {!sidebarCollapsed && (
+                      <span className={`text-[14px] font-bold tracking-wide ${isActive ? 'text-white drop-shadow-sm' : 'text-slate-400 group-hover:text-white'}`}>
+                        {item.label}
+                      </span>
+                    )}
+                    
+                    {!sidebarCollapsed && item.id === 'personnel' && candidates.length > 0 && (
+                      <span className={`ml-auto px-2 py-0.5 rounded text-[10px] font-black transition-colors duration-300 ${isActive ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700'}`}>
+                        {candidates.length}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           ))}
         </nav>
@@ -1740,35 +1742,35 @@ const MainContent = () => {
         {/* Toggle Button */}
         <button 
           onClick={toggleSidebar}
-          className="absolute -right-3.5 top-24 w-7 h-7 bg-slate-900 border border-white/10 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all z-[60] text-slate-400 hover:text-white"
+          className="absolute -right-3.5 top-24 w-7 h-7 bg-slate-900 border border-slate-700 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all z-[60] text-slate-400 hover:text-white hover:border-slate-500"
         >
           {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
 
         {/* User Card */}
         <div className="p-4 mt-auto">
-          <div className={`p-5 bg-white/[0.03] border border-white/5 rounded-[2rem] space-y-5 transition-all ${sidebarCollapsed ? 'items-center flex flex-col px-2' : ''}`}>
+          <div className={`p-4 bg-[#111827] border border-slate-800 rounded-[2rem] space-y-4 transition-all hover:border-slate-700 ${sidebarCollapsed ? 'items-center flex flex-col px-2' : ''}`}>
              <div className={`flex items-center gap-4 ${sidebarCollapsed ? 'justify-center' : ''}`}>
                 <div className="relative shrink-0">
-                    <div className="w-10 h-10 rounded-2xl bg-slate-800 overflow-hidden ring-2 ring-white/5 shadow-inner">
+                    <div className="w-10 h-10 rounded-2xl bg-slate-800 overflow-hidden ring-2 ring-slate-700 shadow-inner">
                         {user?.photoURL ? (
                           <img src={user.photoURL} alt="User" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-slate-700 text-white font-bold">
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-700 to-slate-800 text-white font-bold">
                             {user?.displayName?.charAt(0) || 'U'}
                           </div>
                         )}
                     </div>
                     {/* Sync Dot */}
-                    <div className="absolute -bottom-1 -right-1">
+                    <div className="absolute -bottom-1 -right-1 ring-2 ring-[#111827] rounded-full bg-[#111827]">
                       <SyncDot />
                     </div>
                 </div>
                 
                 {!sidebarCollapsed && (
                   <div className="flex-1 overflow-hidden">
-                      <p className="text-[10px] font-black text-slate-500 truncate uppercase tracking-tighter">{user?.email}</p>
-                      <p className="text-sm font-black truncate text-white tracking-tight">{user?.displayName || 'User profile'}</p>
+                      <p className="text-[10px] font-black text-slate-500 truncate uppercase tracking-widest">{user?.email}</p>
+                      <p className="text-sm font-bold truncate text-slate-200 tracking-tight">{user?.displayName || 'User profile'}</p>
                   </div>
                 )}
              </div>
@@ -1776,13 +1778,13 @@ const MainContent = () => {
              {!sidebarCollapsed && (
                  <Button 
                     variant="ghost" 
-                    className="w-full justify-start text-slate-400 hover:text-white hover:bg-white/5 p-0 h-auto gap-3 group/signout px-1" 
+                    className="w-full justify-start text-slate-400 hover:text-white hover:bg-slate-800/50 p-0 h-auto gap-3 group/signout px-2 py-1.5 rounded-xl transition-all" 
                     onClick={logout}
                  >
-                   <div className="p-2 bg-white/5 rounded-xl group-hover/signout:bg-red-500/10 transition-colors">
-                    <LogOut className="w-4 h-4 text-slate-500 group-hover/signout:text-red-400" />
+                   <div className="p-1.5 bg-slate-800 rounded-lg group-hover/signout:bg-red-500/10 transition-colors">
+                    <LogOut className="w-4 h-4 text-slate-400 group-hover/signout:text-red-400 transition-colors" />
                    </div>
-                   <span className="text-xs font-black uppercase tracking-widest group-hover/signout:text-white">Sign Out</span>
+                   <span className="text-xs font-bold uppercase tracking-widest text-slate-500 group-hover/signout:text-white transition-colors">Sign Out</span>
                  </Button>
              )}
           </div>

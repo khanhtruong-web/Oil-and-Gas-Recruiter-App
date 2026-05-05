@@ -312,33 +312,48 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
                     </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                    <div className="flex flex-col md:flex-row items-center gap-4">
-                        <div className="flex-1 w-full">
-                            <Select value={selectedCandidateId} onValueChange={setSelectedCandidateId}>
-                                <SelectTrigger className="h-12 bg-white border-slate-200 rounded-xl shadow-sm focus:ring-primary/20">
-                                    <SelectValue placeholder="— Select a CV/Expert —" />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-[300px] rounded-xl shadow-xl">
-                                    {candidates.length === 0 && (
-                                        <div className="p-4 text-center text-xs text-slate-400">No candidates found in the system.</div>
-                                    )}
-                                    {candidates.map(c => (
-                                        <SelectItem key={c.id} value={c.id!} className="rounded-lg">
-                                            <div className="flex flex-col py-1">
-                                                <span className="font-bold text-slate-800">{c.candidateName}</span>
-                                                <span className="text-[10px] text-slate-400 uppercase tracking-widest">{c.discipline} • {c.yearsExp} Years Exp</span>
+                    <div className="font-bold text-slate-700 mb-2">1. Select Candidate:</div>
+                    <div className="border border-slate-200 rounded-xl overflow-hidden mb-6 max-h-[250px] overflow-y-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 shadow-sm z-10">
+                                <tr>
+                                    <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest w-16 text-center">Select</th>
+                                    <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest">Name</th>
+                                    <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest">Discipline</th>
+                                    <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest w-24 text-center">Exp (Yrs)</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 bg-white">
+                                {candidates.map(c => (
+                                    <tr 
+                                        key={c.id} 
+                                        className={`cursor-pointer transition-colors hover:bg-slate-50/80 ${selectedCandidateId === c.id ? 'bg-indigo-50/50' : ''}`}
+                                        onClick={() => setSelectedCandidateId(c.id!)}
+                                    >
+                                        <td className="px-4 py-3 text-center">
+                                            <div className={`w-4 h-4 rounded-full border-2 mx-auto flex items-center justify-center transition-all ${selectedCandidateId === c.id ? 'border-primary bg-primary scale-110 shadow-sm shadow-primary/30' : 'border-slate-300'}`}>
+                                                {selectedCandidateId === c.id && <div className="w-1.5 h-1.5 bg-white rounded-full mx-auto" />}
                                             </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 w-full md:w-auto">
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className={`font-bold transition-colors ${selectedCandidateId === c.id ? 'text-primary' : 'text-slate-800'}`}>{c.candidateName}</span>
+                                        </td>
+                                        <td className="px-4 py-3"><span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold uppercase tracking-wider">{c.discipline}</span></td>
+                                        <td className="px-4 py-3 text-center font-mono font-bold text-slate-500">{c.yearsExp}</td>
+                                    </tr>
+                                ))}
+                                {candidates.length === 0 && (
+                                    <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400 font-medium">No candidates found in the system.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row items-center justify-end gap-3 w-full border-t border-slate-100 pt-5">
                             {selectedTemplate.isCustom && (
                                 <Button 
                                     variant="outline" 
-                                    className="h-12 px-4 font-bold rounded-xl border-slate-200 bg-amber-50 text-amber-700 hover:bg-amber-100" 
+                                    className="h-11 px-5 font-bold rounded-xl border-slate-300 bg-amber-50 text-amber-700 hover:bg-amber-100 shadow-sm" 
                                     onClick={runAIExtraction}
                                     disabled={processingAI || !selectedCandidateId}
                                 >
@@ -349,7 +364,7 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
 
                             <Button 
                                 variant="outline" 
-                                className="h-12 px-4 font-bold rounded-xl border-slate-200 flex-1 md:flex-none" 
+                                className="h-11 px-5 font-bold rounded-xl border-slate-300 shadow-sm text-slate-700 hover:text-slate-900" 
                                 onClick={() => {
                                     if(!selectedCandidateId) return toast.error('Select a CV first');
                                     setShowPreview(!showPreview);
@@ -360,14 +375,13 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
                             </Button>
 
                             <Button 
-                                className="h-12 px-6 font-bold rounded-xl shadow-lg transition-transform active:scale-95 flex-1 md:flex-none" 
+                                className="h-11 px-8 font-bold rounded-xl shadow-lg transition-transform active:scale-95" 
                                 style={{ backgroundColor: selectedTemplate.color, color: selectedTemplate.id === 'shell' ? '#000' : '#fff' }}
                                 onClick={handleExport}
                             >
                                 <Download className="w-4 h-4 mr-2" />
                                 Export to Word
                             </Button>
-                        </div>
                     </div>
 
                     {showPreview && selectedCandidateId && (
