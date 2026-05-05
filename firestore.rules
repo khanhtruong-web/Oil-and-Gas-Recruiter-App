@@ -95,8 +95,7 @@ service cloud.firestore {
 
     // ACTIVITIES COLLECTION
     match /activities/{activityId} {
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
+      allow read, write: if true;
     }
 
     // TEMPLATES COLLECTION

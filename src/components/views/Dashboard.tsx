@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -25,7 +25,28 @@ import { exportToExcelWithPivots } from '../../lib/excel-export';
 export const Dashboard = ({ candidates, activities }: { candidates: Candidate[], activities: ActivityLog[] }) => {
   const { profile } = useAuth();
   const { disciplines: catalogDisciplines } = useDisciplines();
-  
+
+  useEffect(() => {
+    // Auto-fix for corrupted old string-based timestamps
+    const cleanup = async () => {
+      try {
+        const { getDocs, collection, deleteDoc, doc } = await import('firebase/firestore');
+        const { db } = await import('../../lib/firebase');
+        const snap = await getDocs(collection(db, 'activities'));
+        for (const d of snap.docs) {
+            const data = d.data();
+            if (typeof data.timestamp === 'string' || !data.timestamp) {
+                await deleteDoc(doc(db, 'activities', d.id));
+                console.log('Cleaned up old string activity');
+            }
+        }
+      } catch(e) {
+        console.error("Cleanup failed", e);
+      }
+    };
+    cleanup();
+  }, []);
+
   const [filterDisc, setFilterDisc] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterFrom, setFilterFrom] = useState('');

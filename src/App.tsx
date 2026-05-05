@@ -1143,18 +1143,22 @@ const MainContent = () => {
 
     const logActivity = async (text: string, type: string = 'general') => {
         const path = 'activities';
+        console.log(`[logActivity] Attempting to log: "${text}" with type: ${type}`);
         try {
-            await addDoc(collection(db, path), {
+            const docRef = await addDoc(collection(db, path), {
                 userId: user!.uid,
                 userName: profile?.userName || user!.displayName || 'User',
                 text,
                 type,
                 timestamp: serverTimestamp()
             });
+            console.log(`[logActivity] Successfully saved with ID: ${docRef.id}`);
+
             if (accessToken && settings?.googleSheetId) {
                  import('./services/sheetService').then(m => {
                      m.logActivity(settings.googleSheetId, profile?.email || user!.email || 'Unknown', text, new Date().toISOString())
                       .catch(err => {
+                          console.log('[logActivity] Sheet sync error:', err.message);
                           if (err.message.includes('Google Sheets API is disabled')) {
                               const gcpLink = err.message.match(/https:\/\/console\.developers\.google\.com\/apis\/api\/sheets\.googleapis\.com\/overview\?project=\d+/)?.[0];
                               toast.error('Google Sheets API is disabled', {
@@ -1170,6 +1174,7 @@ const MainContent = () => {
                  });
             }
         } catch (e) {
+            console.error('[logActivity] Error adding document to Firestore:', e);
             handleFirestoreError(e, OperationType.WRITE, path);
         }
     };
