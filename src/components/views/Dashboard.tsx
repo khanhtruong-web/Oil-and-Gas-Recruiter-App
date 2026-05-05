@@ -21,6 +21,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, L
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import { exportToExcelWithPivots } from '../../lib/excel-export';
+import { db } from '../../lib/firebase';
+import { getDocs, collection, deleteDoc, doc } from 'firebase/firestore';
 
 export const Dashboard = ({ candidates, activities }: { candidates: Candidate[], activities: ActivityLog[] }) => {
   const { profile } = useAuth();
@@ -30,8 +32,6 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
     // Auto-fix for corrupted old string-based timestamps
     const cleanup = async () => {
       try {
-        const { getDocs, collection, deleteDoc, doc } = await import('firebase/firestore');
-        const { db } = await import('../../lib/firebase');
         const snap = await getDocs(collection(db, 'activities'));
         for (const d of snap.docs) {
             const data = d.data();

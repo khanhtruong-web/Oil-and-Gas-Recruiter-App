@@ -1403,10 +1403,11 @@ const MainContent = () => {
             if ((status === 'Hired' || status === 'Shortlisted') && accessToken && cand.driveFileId && settings?.driveRootFolderId) {
                 try {
                     const { findOrCreateFolder, moveFile } = await import('./services/driveService');
-                    const targetFolderId = await findOrCreateFolder(cand.discipline || 'Uncategorized', settings.driveRootFolderId);
+                    const safeFolderName = getSafeDisciplineFolderName(cand.discipline || 'Uncategorized');
+                    const targetFolderId = await findOrCreateFolder(safeFolderName, settings.driveRootFolderId);
                     if (targetFolderId) {
                         await moveFile(cand.driveFileId, targetFolderId);
-                        toast.success(`Google Drive: CV moved to /${cand.discipline || 'Uncategorized'}`);
+                        toast.success(`Google Drive: CV moved to /${safeFolderName}`);
                     }
                 } catch (e: any) {
                     console.error("Failed to move file in Drive:", e);
@@ -1504,10 +1505,11 @@ const MainContent = () => {
             if ((cand?.currentStatus === 'Hired' || cand?.currentStatus === 'Shortlisted' || (cand as any)?.status === 'Hired' || (cand as any)?.status === 'Shortlisted') && accessToken && cand.driveFileId && settings?.driveRootFolderId) {
                 try {
                     const { findOrCreateFolder, moveFile } = await import('./services/driveService');
-                    const targetFolderId = await findOrCreateFolder(discipline || 'Uncategorized', settings.driveRootFolderId);
+                    const safeFolderName = getSafeDisciplineFolderName(discipline || 'Uncategorized');
+                    const targetFolderId = await findOrCreateFolder(safeFolderName, settings.driveRootFolderId);
                     if (targetFolderId) {
                         await moveFile(cand.driveFileId, targetFolderId);
-                        toast.success(`Google Drive: CV moved to /${discipline || 'Uncategorized'}`);
+                        toast.success(`Google Drive: CV moved to /${safeFolderName}`);
                     }
                 } catch (e: any) {
                     console.error("Failed to move file in Drive when discipline changed:", e);
