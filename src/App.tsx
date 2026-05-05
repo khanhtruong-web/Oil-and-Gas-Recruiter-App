@@ -1722,7 +1722,7 @@ const MainContent = () => {
                     <item.icon className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`} />
                     
                     {!sidebarCollapsed && (
-                      <span className={`text-[14px] font-bold tracking-wide ${isActive ? 'text-white drop-shadow-sm' : 'text-slate-400 group-hover:text-white'}`}>
+                      <span className={`text-[14px] font-bold tracking-wide text-left leading-tight ${isActive ? 'text-white drop-shadow-sm' : 'text-slate-400 group-hover:text-white'}`}>
                         {item.label}
                       </span>
                     )}

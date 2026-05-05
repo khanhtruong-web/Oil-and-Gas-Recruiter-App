@@ -6,7 +6,7 @@ import { Candidate, CompanyTemplate } from '../../types';
 import { exportToWord, fillTemplate, getTemplateVariables } from '../../services/docxService';
 import { geminiService } from '../../services/geminiService';
 import { toast } from 'sonner';
-import { Building2, FileText, Download, Eye, Columns, Upload, Trash2, Plus, Info, LayoutTemplate, CheckCircle2, Save, Wand2 } from 'lucide-react';
+import { Building2, FileText, Download, Eye, Columns, Upload, Trash2, Plus, Info, LayoutTemplate, CheckCircle2, Save, Wand2, Search } from 'lucide-react';
 import { useAuth } from '../AuthProvider';
 import { db } from '../../lib/firebase';
 import { collection, onSnapshot, query, where, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 
 const PRESET_TEMPLATES: CompanyTemplate[] = [
+    { id: 'bureau_veritas', name: 'Bureau Veritas', color: '#b20023', accent: '#8a001a', logo: '🛡️', country: 'France' },
     { id: 'petrobras', name: 'Petrobras', color: '#00AEEF', accent: '#005f8a', logo: '🏭', country: 'Brazil' },
     { id: 'shell', name: 'Shell', color: '#FFD700', accent: '#c5a600', logo: '🐚', country: 'Netherlands' },
     { id: 'exxon', name: 'ExxonMobil', color: '#FF0000', accent: '#b30000', logo: '⚡', country: 'USA' },
@@ -29,6 +30,25 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
         const cs = c.currentStatus?.toLowerCase() || (c as any).status?.toLowerCase();
         return cs !== 'deleted';
     }), [rawCandidates]);
+    
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterDiscipline, setFilterDiscipline] = useState('All');
+    
+    const filteredCandidates = React.useMemo(() => {
+        return candidates.filter(c => {
+            const matchesSearch = c.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) || c.email?.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesDiscipline = filterDiscipline === 'All' || c.discipline === filterDiscipline;
+            return matchesSearch && matchesDiscipline;
+        });
+    }, [candidates, searchTerm, filterDiscipline]);
+    
+    // Extract unique disciplines for the filter dropdown
+    const disciplines = React.useMemo(() => {
+        const set = new Set<string>();
+        candidates.forEach(c => { if (c.discipline) set.add(c.discipline); });
+        return Array.from(set).sort();
+    }, [candidates]);
+    
     const { user } = useAuth();
     const [selectedTemplate, setSelectedTemplate] = useState<CompanyTemplate>(PRESET_TEMPLATES[5]);
     const [customTemplates, setCustomTemplates] = useState<CompanyTemplate[]>([]);
@@ -114,6 +134,30 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
             toast.success('Cross-platform sync complete', { id: 'save-cand' });
         } catch (error: any) {
              handleFirestoreError(error, OperationType.UPDATE, `candidates/${selectedCandidateId}`);
+        }
+    };
+
+    const runDetailedAI = async () => {
+        if (!selectedCandidateId) return;
+        const cv = candidates.find(c => c.id === selectedCandidateId);
+        if (!cv?.rawText) return toast.error('No raw text available for this candidate.');
+        
+        try {
+            setProcessingAI(true);
+            toast.loading('AI is deeply parsing complex project and task tables...', { id: 'extract-detail' });
+            
+            const result = await geminiService.extractDetailedRecords(cv.rawText);
+            
+            setEditingCandidate(prev => ({
+                ...prev,
+                ...result
+            }));
+            
+            toast.success('Successfully extracted detailed structured records! Please review and save.', { id: 'extract-detail' });
+        } catch (error: any) {
+            toast.error(error.message || 'Extract failed', { id: 'extract-detail' });
+        } finally {
+            setProcessingAI(false);
         }
     };
 
@@ -312,8 +356,33 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
                     </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                    <div className="font-bold text-slate-700 mb-2">1. Select Candidate:</div>
-                    <div className="border border-slate-200 rounded-xl overflow-hidden mb-6 max-h-[250px] overflow-y-auto">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+                        <div className="font-bold text-slate-700">1. Select Candidate:</div>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                             <div className="relative">
+                                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                 <Input 
+                                     placeholder="Search name or email..." 
+                                     className="w-full sm:w-64 pl-9 h-10 border-slate-200"
+                                     value={searchTerm}
+                                     onChange={(e) => setSearchTerm(e.target.value)}
+                                 />
+                             </div>
+                             <Select value={filterDiscipline} onValueChange={setFilterDiscipline}>
+                                 <SelectTrigger className="w-full sm:w-48 h-10 border-slate-200">
+                                     <SelectValue placeholder="Discipline" />
+                                 </SelectTrigger>
+                                 <SelectContent>
+                                     <SelectItem value="All">All Disciplines</SelectItem>
+                                     {disciplines.map(d => (
+                                         <SelectItem key={d} value={d}>{d}</SelectItem>
+                                     ))}
+                                 </SelectContent>
+                             </Select>
+                        </div>
+                    </div>
+                    
+                    <div className="border border-slate-200 rounded-xl overflow-hidden mb-6 max-h-[300px] overflow-y-auto">
                         <table className="w-full text-sm text-left">
                             <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 shadow-sm z-10">
                                 <tr>
@@ -324,7 +393,7 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 bg-white">
-                                {candidates.map(c => (
+                                {filteredCandidates.map(c => (
                                     <tr 
                                         key={c.id} 
                                         className={`cursor-pointer transition-colors hover:bg-slate-50/80 ${selectedCandidateId === c.id ? 'bg-indigo-50/50' : ''}`}
@@ -342,8 +411,8 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
                                         <td className="px-4 py-3 text-center font-mono font-bold text-slate-500">{c.yearsExp}</td>
                                     </tr>
                                 ))}
-                                {candidates.length === 0 && (
-                                    <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400 font-medium">No candidates found in the system.</td></tr>
+                                {filteredCandidates.length === 0 && (
+                                    <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400 font-medium">No candidates match your search.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -402,11 +471,18 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
                                     <h6 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2" style={{ color: selectedTemplate.color }}>
                                         <Building2 className="w-3 h-3" /> Information Frame Editor ({selectedTemplate.name})
                                     </h6>
-                                    {!selectedTemplate.isCustom && (
-                                        <Button size="sm" variant="outline" onClick={saveCandidateChanges} className="h-7 text-xs bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
-                                            <Save className="w-3 h-3 mr-1" /> Save to System
-                                        </Button>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                        {!selectedTemplate.isCustom && (
+                                            <Button size="sm" variant="outline" onClick={runDetailedAI} disabled={processingAI || !selectedCandidateId} className="h-7 text-xs bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100">
+                                                <Wand2 className={`w-3 h-3 mr-1 ${processingAI ? 'animate-spin' : ''}`} /> Re-extract Details (AI)
+                                            </Button>
+                                        )}
+                                        {!selectedTemplate.isCustom && (
+                                            <Button size="sm" variant="outline" onClick={saveCandidateChanges} className="h-7 text-xs bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
+                                                <Save className="w-3 h-3 mr-1" /> Save to System
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                                 
                                 <div className="p-6 bg-white border border-slate-200 rounded-2xl flex-1 overflow-y-auto shadow-sm relative" 
@@ -509,6 +585,36 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
                                                     className="text-sm min-h-[80px] leading-relaxed w-full p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
                                                     value={editingCandidate.keySkills || ''} 
                                                     onChange={e => setEditingCandidate({...editingCandidate, keySkills: e.target.value})} 
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5 pt-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex justify-between">
+                                                    <span>Employment Records</span>
+                                                </Label>
+                                                <textarea 
+                                                    className="text-sm min-h-[120px] leading-relaxed w-full p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
+                                                    value={editingCandidate.employmentRecords || ''} 
+                                                    onChange={e => setEditingCandidate({...editingCandidate, employmentRecords: e.target.value})} 
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5 pt-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex justify-between">
+                                                    <span>Project Records</span>
+                                                </Label>
+                                                <textarea 
+                                                    className="text-sm min-h-[120px] leading-relaxed w-full p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
+                                                    value={editingCandidate.projectRecords || ''} 
+                                                    onChange={e => setEditingCandidate({...editingCandidate, projectRecords: e.target.value})} 
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5 pt-2">
+                                                <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex justify-between">
+                                                    <span>Detailed Tasks (Table extracted)</span>
+                                                </Label>
+                                                <textarea 
+                                                    className="text-sm min-h-[180px] leading-relaxed w-full p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
+                                                    value={editingCandidate.detailedTasks || ''} 
+                                                    onChange={e => setEditingCandidate({...editingCandidate, detailedTasks: e.target.value})} 
                                                 />
                                             </div>
                                         </div>

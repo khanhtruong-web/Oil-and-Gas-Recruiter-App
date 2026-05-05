@@ -61,9 +61,12 @@ class GeminiService {
       aiScore: { type: Type.NUMBER },
       aiStrengths: { type: Type.STRING },
       aiGaps: { type: Type.STRING },
-      professionalSummary: { type: Type.STRING }
+      professionalSummary: { type: Type.STRING },
+      employmentRecords: { type: Type.STRING, description: "Extract employment history (timeline, company, position) as plain text or markdown list." },
+      projectRecords: { type: Type.STRING, description: "Extract main projects timeline (period, project name, descriptions) as plain text or markdown list." },
+      detailedTasks: { type: Type.STRING, description: "Extract detailed tasks assigned in projects. Convert complex tables into clean, readable text lists outlining the project, client, role, and duties." }
     },
-    required: ["candidateName", "yearsExp", "discipline", "professionalSummary"]
+    required: ["candidateName", "yearsExp", "discipline", "professionalSummary", "employmentRecords", "projectRecords", "detailedTasks"]
   };
 
   async parseCV(text: string): Promise<Partial<Candidate>> {
@@ -75,11 +78,10 @@ class GeminiService {
         model: this.modelName,
         contents: `Act as a professional recruiter. Extract structured data from this CV text.
 The CV may be in English, Vietnamese, or a mix of both. 
-For 'discipline', 'specializedField', and 'workFields', you MUST provide the most accurate English technical terms for the Oil & Gas industry, even if the source is in Vietnamese.
-For 'professionalSummary' (Pitch Summary), you MUST generate a comprehensive professional bio in English that explicitly includes:
-- A brief overview of their primary expertise/field (what they have the most experience doing).
-- Notable certifications (if any).
-- Details about their most recent project or role.
+For 'discipline', 'specializedField', and 'workFields', you MUST provide the most accurate English technical terms for the Oil & Gas industry.
+For 'professionalSummary' (Pitch Summary), generate a comprehensive professional bio in English.
+
+For 'employmentRecords', 'projectRecords', and 'detailedTasks', carefully extract the detailed tabular information from the PDF text. Simplify any complex tables into clear, structured markdown lists (e.g. bullet points for duties, with clear headers for dates/projects). Ensure high accuracy of dates, client names, roles, and project descriptions.
 
 CV TEXT:\n\n${text.substring(0, 30000)}`,
         config: {
@@ -139,6 +141,43 @@ ${rawText.substring(0, 30000)}`,
       return JSON.parse(response.text || "{}");
     } catch (error) {
       console.error("Gemini Map Template Error:", error);
+      throw error;
+    }
+  }
+
+  async extractDetailedRecords(text: string): Promise<{ employmentRecords?: string, projectRecords?: string, detailedTasks?: string }> {
+    if (!this.ai) await this.initClient();
+    if (!this.ai) throw new Error("API Key logic failed: Gemini API key is required.");
+    
+    try {
+      const response = await this.ai.models.generateContent({
+        model: this.modelName,
+        contents: `Carefully extract the employment and project history from the following CV text. The spellchecker already does a good job, but we need you to focus specifically on formatting the table data and lists perfectly for insertion into a Word Document.
+You must return JSON with three string fields (formatted with newlines where appropriate):
+1. "employmentRecords": Extract employment history (duration, company, role) as plain text.
+2. "projectRecords": Extract main projects track record (period, project name, descriptions) as plain text.
+3. "detailedTasks": Extract detailed tasks assigned in projects. Convert complex tables into clean, readable text lists outlining the project, client, role, and duties.
+
+Make sure you do NOT use markdown symbols like * or #, just use plain text with logical indentation/newlines. Avoid inserting long bullet symbols, just use simple dashes if needed.
+
+CV TEXT:\n\n${text.substring(0, 30000)}`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              employmentRecords: { type: Type.STRING },
+              projectRecords: { type: Type.STRING },
+              detailedTasks: { type: Type.STRING }
+            },
+            required: ["employmentRecords", "projectRecords", "detailedTasks"]
+          }
+        }
+      });
+
+      return JSON.parse(response.text || "{}");
+    } catch (error) {
+      console.error("Gemini Details Extraction Error:", error);
       throw error;
     }
   }

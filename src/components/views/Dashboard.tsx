@@ -121,16 +121,25 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
     .slice(0, 5);
 
   const formatTimestamp = (ts: any) => {
-    if (!ts) return 'just now';
-    const d = ts instanceof Date ? ts : new Date(ts);
-    if (isNaN(d.getTime())) return 'just now';
+    if (!ts) return 'Just now';
+    let d: Date;
+    if (ts?.toDate) {
+      d = ts.toDate();
+    } else if (ts instanceof Date) {
+      d = ts;
+    } else {
+      d = new Date(ts);
+    }
+    if (isNaN(d.getTime())) return 'Just now';
     
     return d.toLocaleString('en-US', {
+      day: '2-digit',
       month: 'short',
-      day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
     });
   };
 

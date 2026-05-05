@@ -21,6 +21,9 @@ export interface Candidate {
   aiSummary?: string;
   professionalSummary?: string;
   rawText?: string;
+  employmentRecords?: string;
+  projectRecords?: string;
+  detailedTasks?: string;
   
   // File context
   driveFileId?: string;

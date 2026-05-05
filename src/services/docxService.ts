@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 import { Candidate } from '../types';
 import Docxtemplater from 'docxtemplater';
@@ -65,7 +65,154 @@ export const fillTemplate = async (mappedData: any, templateBase64: string, temp
   }
 };
 
+const buildBureauVeritasTemplate = (candidate: Candidate) => {
+  const HEADER_RED = 'b20023';
+  const SECTION_GREY = '8c8c8e';
+  
+  const createSectionHeader = (title: string) => {
+    return new TableRow({
+      children: [
+        new TableCell({
+          columnSpan: 2,
+          shading: { fill: SECTION_GREY, type: ShadingType.CLEAR, color: 'auto' },
+          margins: { top: 100, bottom: 100, left: 150, right: 150 },
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: title, bold: true, color: 'FFFFFF' })],
+              alignment: AlignmentType.LEFT
+            })
+          ],
+        })
+      ]
+    });
+  };
+
+  const createDataRow = (label: string, content: string | string[]) => {
+    const contents = Array.isArray(content) ? content : (content || '').split('\n').filter(Boolean);
+    return new TableRow({
+      children: [
+        new TableCell({
+          shading: { fill: HEADER_RED, type: ShadingType.CLEAR, color: 'auto' },
+          margins: { top: 100, bottom: 100, left: 150, right: 150 },
+          width: { size: 30, type: WidthType.PERCENTAGE },
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: label, bold: true, color: 'FFFFFF' })]
+            })
+          ],
+        }),
+        new TableCell({
+          margins: { top: 100, bottom: 100, left: 150, right: 150 },
+          width: { size: 70, type: WidthType.PERCENTAGE },
+          children: contents.length > 0 ? contents.map(text => 
+            new Paragraph({
+               children: [new TextRun({ text: text })],
+               spacing: { after: 60 }
+            })
+          ) : [new Paragraph({ children: [new TextRun({ text: 'N/A' })] })],
+        })
+      ]
+    });
+  };
+
+  const rows: TableRow[] = [];
+  
+  // 1. GENERAL INFORMATION
+  rows.push(createSectionHeader('1. GENERAL INFORMATION:'));
+  rows.push(createDataRow('Proposed position', candidate.discipline || 'N/A'));
+  rows.push(createDataRow('Home office', 'Bureau Veritas Vietnam'));
+  rows.push(createDataRow('Gender', 'Male'));
+  rows.push(createDataRow('Nationality', 'Vietnamese'));
+  
+  // 2. AREAS OF SPECIALITY
+  rows.push(createSectionHeader('2. AREAS OF SPECIALITY:'));
+  rows.push(createDataRow('Summary', candidate.professionalSummary || 'No summary available.'));
+  if (candidate.keySkills) {
+      rows.push(createDataRow('Key Skills', candidate.keySkills));
+  }
+  
+  // 3. EDUCATION
+  rows.push(createSectionHeader('3. EDUCATION:'));
+  rows.push(createDataRow('Education', candidate.education || 'N/A'));
+  
+  // 4. PROFESSIONAL TRAININGS...
+  if (candidate.certifications) {
+    rows.push(createSectionHeader('4. PROFESSIONAL TRAININGS AND CERTIFICATES:'));
+    rows.push(createDataRow('Certificates', candidate.certifications));
+  }
+
+  // Languages...
+  rows.push(createSectionHeader('5. LANGUAGES AND DEGREE OF PROFICIENCY:'));
+  rows.push(createDataRow('English', 'Good at reading, speaking, listening and writing'));
+  
+  // Experience
+  if (candidate.employmentRecords) {
+      rows.push(createSectionHeader('6. EMPLOYMENT RECORDS:'));
+      rows.push(createDataRow('Records', candidate.employmentRecords));
+  }
+  
+  if (candidate.projectRecords) {
+      rows.push(createSectionHeader('7. MAIN PROJECTS TRACK RECORD:'));
+      rows.push(createDataRow('Projects', candidate.projectRecords));
+  }
+  
+  if (candidate.detailedTasks) {
+      rows.push(createSectionHeader('8. DETAILED TASKS ASSIGNED IN PROJECTS INVOLVED:'));
+      rows.push(createDataRow('Tasks', candidate.detailedTasks));
+  } else if (candidate.rawText) {
+      rows.push(createSectionHeader('8. RAW DATA (Fallback):'));
+      rows.push(createDataRow('Raw Data', candidate.rawText.substring(0, 3000) + '...'));
+  }
+
+  const table = new Table({
+      rows,
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: {
+          top: { style: BorderStyle.SINGLE, size: 1, color: 'cccccc' },
+          bottom: { style: BorderStyle.SINGLE, size: 1, color: 'cccccc' },
+          left: { style: BorderStyle.SINGLE, size: 1, color: 'cccccc' },
+          right: { style: BorderStyle.SINGLE, size: 1, color: 'cccccc' },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'cccccc' },
+          insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'cccccc' },
+      }
+  });
+
+  const children = [
+      new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+             new TextRun({ text: 'BUREAU VERITAS', bold: true, size: 36, color: HEADER_RED }),
+          ],
+          spacing: { after: 400 }
+      }),
+      new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+             new TextRun({ text: candidate.candidateName?.toUpperCase() || 'CANDIDATE', bold: true, size: 36, color: '555555' }),
+          ]
+      }),
+      new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+             new TextRun({ text: 'CURRICULUM VITAE', bold: true, size: 36, color: HEADER_RED }),
+          ],
+          spacing: { after: 400 }
+      }),
+      table
+  ];
+
+  return new Document({ sections: [{ properties: {}, children }] });
+};
+
 export const exportToWord = async (candidate: Candidate, templateName: string = 'Standard Company Format') => {
+  if (templateName === 'Bureau Veritas') {
+      const bDoc = buildBureauVeritasTemplate(candidate);
+      const bBlob = await Packer.toBlob(bDoc);
+      const bSafeName = (candidate.candidateName || 'Unknown').replace(/\W+/g, '_');
+      saveAs(bBlob, `CV_${bSafeName}_BureauVeritas.docx`);
+      return;
+  }
+
   const children: any[] = [];
 
   // Header Title
@@ -190,6 +337,27 @@ export const exportToWord = async (candidate: Candidate, templateName: string = 
 
   children.push(new Paragraph({ children: [new TextRun({ text: `AI Score: ${candidate.aiScore || 'N/A'}/100`, bold: true })], spacing: { after: 100 } }));
   children.push(new Paragraph({ children: [new TextRun({ text: `System Notes: ${candidate.aiSummary || 'None'}` })], spacing: { after: 100 } }));
+
+  // Projects and Employment
+  if (candidate.employmentRecords) {
+    children.push(new Paragraph({ spacing: { after: 300 } }));
+    children.push(new Paragraph({ children: [new TextRun({ text: '6. EMPLOYMENT RECORDS', bold: true, size: 24, color: '334155' })], spacing: { after: 100 }, border: { bottom: { color: 'cbd5e1', space: 2, style: BorderStyle.SINGLE, size: 2 } } }));
+    children.push(...candidate.employmentRecords.split('\n').filter(l => l.trim()).map(line => new Paragraph({ children: [new TextRun({ text: line.replace(/^- /, '') })], bullet: { level: 0 }, spacing: { after: 100 } })));
+  }
+
+  if (candidate.projectRecords || candidate.detailedTasks) {
+    const title = candidate.detailedTasks ? '7. DETAILED TASKS AND PROJECTS' : '7. PROJECTS';
+    children.push(new Paragraph({ spacing: { after: 300 } }));
+    children.push(new Paragraph({ children: [new TextRun({ text: title, bold: true, size: 24, color: '334155' })], spacing: { after: 100 }, border: { bottom: { color: 'cbd5e1', space: 2, style: BorderStyle.SINGLE, size: 2 } } }));
+    
+    if (candidate.projectRecords) {
+        children.push(...candidate.projectRecords.split('\n').filter(l => l.trim()).map(line => new Paragraph({ children: [new TextRun({ text: line.replace(/^- /, '') })], bullet: { level: 0 }, spacing: { after: 100 } })));
+    }
+    if (candidate.detailedTasks) {
+        children.push(new Paragraph({ spacing: { after: 200 } }));
+        children.push(...candidate.detailedTasks.split('\n').filter(l => l.trim()).map(line => new Paragraph({ children: [new TextRun({ text: line.replace(/^- /, '') })], spacing: { after: 100 } })));
+    }
+  }
 
   // Create doc
   const doc = new Document({
