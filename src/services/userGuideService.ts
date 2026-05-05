@@ -6,9 +6,9 @@ function parseTextRuns(text: string, isQuote: boolean = false) {
     const segments = text.split(/(\*\*.*?\*\*)/g);
     return segments.map(seg => {
         if (seg.startsWith('**') && seg.endsWith('**')) {
-            return new TextRun({ text: seg.substring(2, seg.length - 2), bold: true, italics: isQuote, size: 24 });
+            return new TextRun({ text: seg.substring(2, seg.length - 2), bold: true, italics: isQuote, size: 24, font: 'Arial' });
         }
-        return new TextRun({ text: seg, size: 24, italics: isQuote });
+        return new TextRun({ text: seg, size: 24, italics: isQuote, bold: true, font: 'Arial' });
     });
 }
 
@@ -59,6 +59,17 @@ export async function generateUserGuide() {
     }
 
     const doc = new Document({
+        styles: {
+            default: {
+                document: {
+                    run: {
+                        font: "Arial",
+                        size: 24,
+                        bold: true,
+                    },
+                },
+            },
+        },
         sections: [{
             properties: {},
             children: children

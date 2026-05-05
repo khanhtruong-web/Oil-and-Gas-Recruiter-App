@@ -42,8 +42,16 @@ Tài liệu này bao gồm hướng dẫn chi tiết từng tính năng của �
   - **Kéo thả Upload**: Bạn kéo một hoặc nhiều file PDF CV vào vùng Dropzone. Hệ thống hỗ trợ xử lý đa nhiệm (chạy ẩn) nên bạn có thể sang mục khác trong lúc ứng dụng xử lý.
   - Tại đây, hệ thống gửi nội dung thô (raw text) về hệ thống Gemini AI để bóc tách thành chuẩn dữ liệu (Tên, Email, Số điện thoại, Lĩnh vực chuyên môn, Bằng cấp...). 
   - **Cảnh báo trùng lặp (Duplicate Detection)**: Tự động cảnh báo nếu ứng viên đã có mặt trên hệ thống.
+  - Sau khi bóc tách cơ bản, bạn có thể sang mục **Company Templates** để dùng tính năng **Re-extract Details (AI)** bóc tách toàn bộ lịch sử làm việc chi tiết.
 
-### 5. Khớp Dữ Liệu Form Công Ty (Company Templates)
+### 5. AI Tools & Phân Tích Chuyên Sâu
+- **Mục Đích**: Ứng dụng AI phân tích CV ở mức độ cao cấp.
+- **Tính năng**:
+  - **Spellcheck**: Proofread toàn bộ CV và xuất ra mã Markdown sửa lỗi ngữ pháp. Bạn dùng tính năng này để dịch thuật và tối ưu hồ sơ cho ứng viên cực kì chính xác, sau copy dán cấu trúc được nâng cấp.
+  - **AI Review**: Chấm điểm phù hợp với một Job Description (JD).
+  - **Candidate Matcher**: Tìm trong CSDL các CV phù hợp nhất với một JD. Xuất báo cáo dưới dạng Word.
+
+### 6. Khớp Dữ Liệu Form Công Ty (Company Templates)
 - **Mục Đích**: Xuất (Export) thông tin vừa bóc tách sang chuẩn CV/Profile của Công ty bạn bằng file Word (.docx) mà vẫn giữ nguyện định dạng, bảng biểu, fonts chữ bản gốc.
 - **Hướng Dẫn Thiết Lập Template Word (Quan Trọng)**:
   1. Mở file MS Word Form của công ty (Ví dụ chuẩn của PTSC, Vietsopetro...).
@@ -59,13 +67,13 @@ Tài liệu này bao gồm hướng dẫn chi tiết từng tính năng của �
   
 - Ở phần này hỗ trợ màn hình **Side-by-side** chia hai nửa màn hình: Một bên là File định dạng gốc và một bên là Dữ liệu ứng viên mà AI đọc được để đối chiếu sửa lỗi tự động.
 
-### 6. Quản Lý Thư Mục (Folder Management) & Google Drive Backup
+### 7. Quản Lý Thư Mục (Folder Management) & Google Drive Backup
 - **Mục Đích**: Phân loại tự động các CV PDF đã xử lý vào Google Drive.
 - **Tính năng**: 
   - Hệ thống tự động tạo các Folder chuyên ngành con bên trong Drive Root.
   - Giao diện cung cấp cho Admin tính năng Share lại Drive Link để Viewer, HR khác có thể vào copy/download trực tiếp CVs file gốc.
 
-### 7. Nhóm Chuyên Trách & Các Chuyên Ngành Được AI Đào Tạo (Disciplines)
+### 8. Nhóm Chuyên Trách & Các Chuyên Ngành Được AI Đào Tạo (Disciplines)
 Hệ thống sử dụng AI để tự động định danh CV của ứng viên vào các nhóm nghiệp vụ (Discipline). Đây là danh sách các nhóm bắt buộc trong CSDL để AI đọc:
 - Subsea
 - Project Management

@@ -589,30 +589,10 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
                                             </div>
                                             <div className="space-y-1.5 pt-2">
                                                 <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex justify-between">
-                                                    <span>Employment Records</span>
+                                                    <span>Full Professional History & Projects (AI Extracted)</span>
                                                 </Label>
                                                 <textarea 
-                                                    className="text-sm min-h-[120px] leading-relaxed w-full p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
-                                                    value={editingCandidate.employmentRecords || ''} 
-                                                    onChange={e => setEditingCandidate({...editingCandidate, employmentRecords: e.target.value})} 
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5 pt-2">
-                                                <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex justify-between">
-                                                    <span>Project Records</span>
-                                                </Label>
-                                                <textarea 
-                                                    className="text-sm min-h-[120px] leading-relaxed w-full p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
-                                                    value={editingCandidate.projectRecords || ''} 
-                                                    onChange={e => setEditingCandidate({...editingCandidate, projectRecords: e.target.value})} 
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5 pt-2">
-                                                <Label className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex justify-between">
-                                                    <span>Detailed Tasks (Table extracted)</span>
-                                                </Label>
-                                                <textarea 
-                                                    className="text-sm min-h-[180px] leading-relaxed w-full p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
+                                                    className="text-sm min-h-[400px] leading-relaxed w-full p-3 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2" 
                                                     value={editingCandidate.detailedTasks || ''} 
                                                     onChange={e => setEditingCandidate({...editingCandidate, detailedTasks: e.target.value})} 
                                                 />

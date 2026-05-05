@@ -5,7 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Candidate } from '../../types';
 import { geminiService } from '../../services/geminiService';
 import { toast } from 'sonner';
-import { Loader2, Bot, CheckCircle2, Award, TrendingUp, Download, Sparkles } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, Bot, CheckCircle2, Award, TrendingUp, Download, Sparkles, Search } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
@@ -17,6 +18,22 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<string>('');
     const [matchResults, setMatchResults] = useState<any>(null);
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterDiscipline, setFilterDiscipline] = useState('All');
+
+    const disciplines = React.useMemo(() => {
+        const unique = new Set(candidates.map(c => c.discipline).filter(Boolean));
+        return Array.from(unique);
+    }, [candidates]);
+
+    const filteredCandidates = React.useMemo(() => {
+        return candidates.filter(c => {
+            const matchesSearch = c.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) || c.email?.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesDiscipline = filterDiscipline === 'All' || c.discipline === filterDiscipline;
+            return matchesSearch && matchesDiscipline;
+        });
+    }, [candidates, searchTerm, filterDiscipline]);
 
     const exportReport = async () => {
         if (!result) return toast.error('No result to export');
@@ -212,19 +229,72 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-upload"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
                         </button>
                     </div>
-                    <div className="flex flex-col md:flex-row gap-4">
-                        {activeTool !== 'match' && (
-                            <Select value={selectedId} onValueChange={setSelectedId}>
-                                <SelectTrigger className="flex-1 h-12 bg-slate-50 border-slate-200 font-medium">
-                                    <SelectValue placeholder="— Select a candidate's CV —" />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-[300px]">
-                                    {candidates.map(c => (
-                                        <SelectItem key={c.id} value={c.id!}>{c.candidateName} - {c.discipline}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        )}
+                    {activeTool !== 'match' && (
+                        <div className="space-y-4">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="font-bold text-slate-700">1. Select Candidate:</div>
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                     <div className="relative">
+                                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                         <Input 
+                                             placeholder="Search name or email..." 
+                                             className="w-full sm:w-64 pl-9 h-10 border-slate-200"
+                                             value={searchTerm}
+                                             onChange={(e) => setSearchTerm(e.target.value)}
+                                         />
+                                     </div>
+                                     <Select value={filterDiscipline} onValueChange={setFilterDiscipline}>
+                                         <SelectTrigger className="w-full sm:w-48 h-10 border-slate-200">
+                                             <SelectValue placeholder="Discipline" />
+                                         </SelectTrigger>
+                                         <SelectContent>
+                                             <SelectItem value="All">All Disciplines</SelectItem>
+                                             {disciplines.map(d => (
+                                                 <SelectItem key={d as string} value={d as string}>{d as string}</SelectItem>
+                                             ))}
+                                         </SelectContent>
+                                     </Select>
+                                </div>
+                            </div>
+                            
+                            <div className="border border-slate-200 rounded-xl overflow-hidden max-h-[300px] overflow-y-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 shadow-sm z-10">
+                                        <tr>
+                                            <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest w-16 text-center">Select</th>
+                                            <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest">Name</th>
+                                            <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest">Discipline</th>
+                                            <th className="px-4 py-3 font-black text-[10px] text-slate-500 uppercase tracking-widest w-24 text-center">Exp (Yrs)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 bg-white">
+                                        {filteredCandidates.map(c => (
+                                            <tr 
+                                                key={c.id} 
+                                                className={`cursor-pointer transition-colors hover:bg-slate-50/80 ${selectedId === c.id ? 'bg-indigo-50/50' : ''}`}
+                                                onClick={() => setSelectedId(c.id!)}
+                                            >
+                                                <td className="px-4 py-3 text-center">
+                                                    <div className={`w-4 h-4 rounded-full border-2 mx-auto flex items-center justify-center transition-all ${selectedId === c.id ? 'border-primary bg-primary scale-110 shadow-sm shadow-primary/30' : 'border-slate-300'}`}>
+                                                        {selectedId === c.id && <div className="w-1.5 h-1.5 bg-white rounded-full mx-auto" />}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`font-bold transition-colors ${selectedId === c.id ? 'text-primary' : 'text-slate-800'}`}>{c.candidateName}</span>
+                                                </td>
+                                                <td className="px-4 py-3"><span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold uppercase tracking-wider">{c.discipline}</span></td>
+                                                <td className="px-4 py-3 text-center font-mono font-bold text-slate-500">{c.yearsExp}</td>
+                                            </tr>
+                                        ))}
+                                        {filteredCandidates.length === 0 && (
+                                            <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400 font-medium">No candidates match your search.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex justify-end pt-2">
                         <Button 
                             className="h-12 px-8 font-black tracking-widest uppercase text-[11px]" 
                             onClick={runAnalysis}
@@ -321,9 +391,12 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
                             </div>
                         ) : result ? (
                             <div className="relative group">
-                                <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                    <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(result); toast.success('Copied to clipboard!'); }} className="shadow-lg bg-white font-bold text-slate-700">
+                                        Copy
+                                    </Button>
                                     <Button size="sm" onClick={exportReport} className="shadow-lg bg-indigo-600 hover:bg-indigo-700 font-bold">
-                                        <Download className="w-4 h-4 mr-2" /> Export Word Report
+                                        <Download className="w-4 h-4 mr-2" /> Export Word
                                     </Button>
                                 </div>
                                 <div className="prose prose-sm prose-slate max-w-none prose-p:leading-relaxed prose-headings:font-black bg-white rounded-lg shadow-sm border border-slate-100 p-6 md:p-8 relative">

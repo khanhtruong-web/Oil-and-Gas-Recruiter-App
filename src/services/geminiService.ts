@@ -62,11 +62,9 @@ class GeminiService {
       aiStrengths: { type: Type.STRING },
       aiGaps: { type: Type.STRING },
       professionalSummary: { type: Type.STRING },
-      employmentRecords: { type: Type.STRING, description: "Extract employment history (timeline, company, position) as plain text or markdown list." },
-      projectRecords: { type: Type.STRING, description: "Extract main projects timeline (period, project name, descriptions) as plain text or markdown list." },
-      detailedTasks: { type: Type.STRING, description: "Extract detailed tasks assigned in projects. Convert complex tables into clean, readable text lists outlining the project, client, role, and duties." }
+      detailedTasks: { type: Type.STRING, description: "Extract detailed tasks, employment history and projects into a clean readable text format. Use this to hold the full professional records." }
     },
-    required: ["candidateName", "yearsExp", "discipline", "professionalSummary", "employmentRecords", "projectRecords", "detailedTasks"]
+    required: ["candidateName", "yearsExp", "discipline", "professionalSummary"]
   };
 
   async parseCV(text: string): Promise<Partial<Candidate>> {
@@ -81,7 +79,7 @@ The CV may be in English, Vietnamese, or a mix of both.
 For 'discipline', 'specializedField', and 'workFields', you MUST provide the most accurate English technical terms for the Oil & Gas industry.
 For 'professionalSummary' (Pitch Summary), generate a comprehensive professional bio in English.
 
-For 'employmentRecords', 'projectRecords', and 'detailedTasks', carefully extract the detailed tabular information from the PDF text. Simplify any complex tables into clear, structured markdown lists (e.g. bullet points for duties, with clear headers for dates/projects). Ensure high accuracy of dates, client names, roles, and project descriptions.
+For 'detailedTasks', carefully extract the detailed tabular information from the PDF text. Simplify any complex tables into clear, structured markdown lists (e.g. bullet points for duties, with clear headers for dates/projects). Ensure high accuracy of dates, client names, roles, and project descriptions.
 
 CV TEXT:\n\n${text.substring(0, 30000)}`,
         config: {
@@ -145,37 +143,24 @@ ${rawText.substring(0, 30000)}`,
     }
   }
 
-  async extractDetailedRecords(text: string): Promise<{ employmentRecords?: string, projectRecords?: string, detailedTasks?: string }> {
+  async extractDetailedRecords(text: string): Promise<{ detailedTasks?: string }> {
     if (!this.ai) await this.initClient();
     if (!this.ai) throw new Error("API Key logic failed: Gemini API key is required.");
     
     try {
       const response = await this.ai.models.generateContent({
         model: this.modelName,
-        contents: `Carefully extract the employment and project history from the following CV text. The spellchecker already does a good job, but we need you to focus specifically on formatting the table data and lists perfectly for insertion into a Word Document.
-You must return JSON with three string fields (formatted with newlines where appropriate):
-1. "employmentRecords": Extract employment history (duration, company, role) as plain text.
-2. "projectRecords": Extract main projects track record (period, project name, descriptions) as plain text.
-3. "detailedTasks": Extract detailed tasks assigned in projects. Convert complex tables into clean, readable text lists outlining the project, client, role, and duties.
+        contents: `Carefully extract and beautifully format the ENTIRE Employment Records, Projects Track Record, and Detailed Tasks section from the CV text below. 
+You must act like a professional CV writer. Format the output as a clean, highly readable text document. 
+Use CAPITALIZED headers for sections like "EMPLOYMENT RECORDS" or "PROJECTS".
+Use simple dashes "-" for bullet points.
+Ensure every single project, date, and task from the original text is preserved accurately. 
+DO NOT RETURN JSON. Just return the beautifully formatted text.
 
-Make sure you do NOT use markdown symbols like * or #, just use plain text with logical indentation/newlines. Avoid inserting long bullet symbols, just use simple dashes if needed.
-
-CV TEXT:\n\n${text.substring(0, 30000)}`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              employmentRecords: { type: Type.STRING },
-              projectRecords: { type: Type.STRING },
-              detailedTasks: { type: Type.STRING }
-            },
-            required: ["employmentRecords", "projectRecords", "detailedTasks"]
-          }
-        }
+CV TEXT:\n\n${text.substring(0, 30000)}`
       });
 
-      return JSON.parse(response.text || "{}");
+      return { detailedTasks: response.text };
     } catch (error) {
       console.error("Gemini Details Extraction Error:", error);
       throw error;
@@ -206,7 +191,14 @@ CANDIDATES DATA (summarized):
     } else {
       // (rest of the logic remains same for single analyze)
       if (mode === 'spellcheck') {
-        prompt = "Proofread this CV bio for grammar and spelling. Return standard English corrections.";
+        prompt = `You are an expert Native English Technical Writer and Senior HR Consultant specializing in the Oil & Gas, Offshore, Subsea, and Welding engineering sectors.
+Your task is to comprehensively proofread and elevate the English grammar, sentence structure, and vocabulary of the following CV.
+CRITICAL RULES:
+1. Maintain the EXACT original structural layout (sections, lists, tables, and bullet points).
+2. Correct all grammatical errors, awkward phrasing, and non-native sentence structures to read like a polished, native English professional.
+3. PRESERVE strictly all Oil & Gas and technical engineering terminology (e.g., NDT, QA/QC, ASME, ISO, Subsea, Piping, Structural, Welding, Dimensional Control). Do not change technical acronyms, certifications, or industry-standard terms.
+4. Enhance the impact of action verbs and professional clarity without altering the factual meaning, dates, or adding hallucinated data.
+5. Output the FULL corrected CV text in beautifully formatted Markdown so the user can easily copy and paste it back into their documents. DO NOT add any extra conversational AI filler text before or after the CV.`;
       } else if (mode === 'review') {
         if (jobDescription) {
           prompt = `Review this CV deeply against the following Job Description. 

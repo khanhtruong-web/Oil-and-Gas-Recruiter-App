@@ -65,8 +65,7 @@ export const fillTemplate = async (mappedData: any, templateBase64: string, temp
   }
 };
 
-const buildBureauVeritasTemplate = (candidate: Candidate) => {
-  const HEADER_RED = 'b20023';
+const buildBrandedTemplate = (candidate: Candidate, companyName: string, headerColor: string, invertLogoText: boolean = false) => {
   const SECTION_GREY = '8c8c8e';
   
   const createSectionHeader = (title: string) => {
@@ -92,12 +91,12 @@ const buildBureauVeritasTemplate = (candidate: Candidate) => {
     return new TableRow({
       children: [
         new TableCell({
-          shading: { fill: HEADER_RED, type: ShadingType.CLEAR, color: 'auto' },
+          shading: { fill: headerColor, type: ShadingType.CLEAR, color: 'auto' },
           margins: { top: 100, bottom: 100, left: 150, right: 150 },
           width: { size: 30, type: WidthType.PERCENTAGE },
           children: [
             new Paragraph({
-              children: [new TextRun({ text: label, bold: true, color: 'FFFFFF' })]
+              children: [new TextRun({ text: label, bold: true, color: invertLogoText ? '000000' : 'FFFFFF' })]
             })
           ],
         }),
@@ -120,8 +119,8 @@ const buildBureauVeritasTemplate = (candidate: Candidate) => {
   // 1. GENERAL INFORMATION
   rows.push(createSectionHeader('1. GENERAL INFORMATION:'));
   rows.push(createDataRow('Proposed position', candidate.discipline || 'N/A'));
-  rows.push(createDataRow('Home office', 'Bureau Veritas Vietnam'));
-  rows.push(createDataRow('Gender', 'Male'));
+  rows.push(createDataRow('Home office', `${companyName} Representative`));
+  rows.push(createDataRow('Gender', 'Male/Female'));
   rows.push(createDataRow('Nationality', 'Vietnamese'));
   
   // 2. AREAS OF SPECIALITY
@@ -146,21 +145,11 @@ const buildBureauVeritasTemplate = (candidate: Candidate) => {
   rows.push(createDataRow('English', 'Good at reading, speaking, listening and writing'));
   
   // Experience
-  if (candidate.employmentRecords) {
-      rows.push(createSectionHeader('6. EMPLOYMENT RECORDS:'));
-      rows.push(createDataRow('Records', candidate.employmentRecords));
-  }
-  
-  if (candidate.projectRecords) {
-      rows.push(createSectionHeader('7. MAIN PROJECTS TRACK RECORD:'));
-      rows.push(createDataRow('Projects', candidate.projectRecords));
-  }
-  
   if (candidate.detailedTasks) {
-      rows.push(createSectionHeader('8. DETAILED TASKS ASSIGNED IN PROJECTS INVOLVED:'));
-      rows.push(createDataRow('Tasks', candidate.detailedTasks));
+      rows.push(createSectionHeader('6. PROFESSIONAL EXPERIENCE & PROJECTS:'));
+      rows.push(createDataRow('Details', candidate.detailedTasks));
   } else if (candidate.rawText) {
-      rows.push(createSectionHeader('8. RAW DATA (Fallback):'));
+      rows.push(createSectionHeader('6. RAW DATA (Fallback):'));
       rows.push(createDataRow('Raw Data', candidate.rawText.substring(0, 3000) + '...'));
   }
 
@@ -181,7 +170,7 @@ const buildBureauVeritasTemplate = (candidate: Candidate) => {
       new Paragraph({
           alignment: AlignmentType.CENTER,
           children: [
-             new TextRun({ text: 'BUREAU VERITAS', bold: true, size: 36, color: HEADER_RED }),
+             new TextRun({ text: companyName.toUpperCase(), bold: true, size: 36, color: headerColor }),
           ],
           spacing: { after: 400 }
       }),
@@ -194,22 +183,59 @@ const buildBureauVeritasTemplate = (candidate: Candidate) => {
       new Paragraph({
           alignment: AlignmentType.CENTER,
           children: [
-             new TextRun({ text: 'CURRICULUM VITAE', bold: true, size: 36, color: HEADER_RED }),
+             new TextRun({ text: 'CURRICULUM VITAE', bold: true, size: 36, color: headerColor }),
           ],
           spacing: { after: 400 }
       }),
-      table
+      table,
+      new Paragraph({ spacing: { before: 800, after: 800 } }),
+      new Paragraph({
+         children: [
+            new TextRun({ text: 'The undersigned certifies the above information is true and correct and will be responsible for any false statement discovered.' })
+         ]
+      }),
+      new Paragraph({ spacing: { before: 800, after: 100 } }),
+      new Paragraph({ children: [new TextRun({ text: '------------------------', bold: true })] }),
+      new Paragraph({ children: [new TextRun({ text: candidate.candidateName || 'Candidate name', bold: true })] }),
   ];
 
   return new Document({ sections: [{ properties: {}, children }] });
 };
 
 export const exportToWord = async (candidate: Candidate, templateName: string = 'Standard Company Format') => {
-  if (templateName === 'Bureau Veritas') {
-      const bDoc = buildBureauVeritasTemplate(candidate);
-      const bBlob = await Packer.toBlob(bDoc);
-      const bSafeName = (candidate.candidateName || 'Unknown').replace(/\W+/g, '_');
-      saveAs(bBlob, `CV_${bSafeName}_BureauVeritas.docx`);
+  let doc: Document;
+  let isStandard = false;
+
+  const bSafeName = (candidate.candidateName || 'Unknown').replace(/\W+/g, '_');
+
+  switch (templateName) {
+    case 'Bureau Veritas':
+      doc = buildBrandedTemplate(candidate, 'Bureau Veritas', 'b20023');
+      break;
+    case 'Petrobras':
+      doc = buildBrandedTemplate(candidate, 'Petrobras', '00AEEF');
+      break;
+    case 'Shell':
+      doc = buildBrandedTemplate(candidate, 'Shell', 'FFD700', true); // Yellow logo needs dark text
+      break;
+    case 'ExxonMobil':
+      doc = buildBrandedTemplate(candidate, 'ExxonMobil', 'E2132D');
+      break;
+    case 'BP':
+      doc = buildBrandedTemplate(candidate, 'BP', '00A651');
+      break;
+    case 'Chevron':
+      doc = buildBrandedTemplate(candidate, 'Chevron', '0054A4');
+      break;
+    default:
+      isStandard = true;
+      doc = new Document({ sections: [] }); // Placeholder, we will build it below
+      break;
+  }
+
+  if (!isStandard) {
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `CV_${bSafeName}_${templateName.replace(/\W+/g, '')}.docx`);
       return;
   }
 
@@ -339,35 +365,28 @@ export const exportToWord = async (candidate: Candidate, templateName: string = 
   children.push(new Paragraph({ children: [new TextRun({ text: `System Notes: ${candidate.aiSummary || 'None'}` })], spacing: { after: 100 } }));
 
   // Projects and Employment
-  if (candidate.employmentRecords) {
+  if (candidate.detailedTasks) {
     children.push(new Paragraph({ spacing: { after: 300 } }));
-    children.push(new Paragraph({ children: [new TextRun({ text: '6. EMPLOYMENT RECORDS', bold: true, size: 24, color: '334155' })], spacing: { after: 100 }, border: { bottom: { color: 'cbd5e1', space: 2, style: BorderStyle.SINGLE, size: 2 } } }));
-    children.push(...candidate.employmentRecords.split('\n').filter(l => l.trim()).map(line => new Paragraph({ children: [new TextRun({ text: line.replace(/^- /, '') })], bullet: { level: 0 }, spacing: { after: 100 } })));
+    children.push(new Paragraph({ children: [new TextRun({ text: '6. PROFESSIONAL EXPERIENCE & PROJECTS', bold: true, size: 24, color: '334155' })], spacing: { after: 100 }, border: { bottom: { color: 'cbd5e1', space: 2, style: BorderStyle.SINGLE, size: 2 } } }));
+    children.push(...candidate.detailedTasks.split('\n').filter(l => l.trim()).map(line => new Paragraph({ children: [new TextRun({ text: line.replace(/^- /, '') })], spacing: { after: 100 } })));
   }
 
-  if (candidate.projectRecords || candidate.detailedTasks) {
-    const title = candidate.detailedTasks ? '7. DETAILED TASKS AND PROJECTS' : '7. PROJECTS';
-    children.push(new Paragraph({ spacing: { after: 300 } }));
-    children.push(new Paragraph({ children: [new TextRun({ text: title, bold: true, size: 24, color: '334155' })], spacing: { after: 100 }, border: { bottom: { color: 'cbd5e1', space: 2, style: BorderStyle.SINGLE, size: 2 } } }));
-    
-    if (candidate.projectRecords) {
-        children.push(...candidate.projectRecords.split('\n').filter(l => l.trim()).map(line => new Paragraph({ children: [new TextRun({ text: line.replace(/^- /, '') })], bullet: { level: 0 }, spacing: { after: 100 } })));
-    }
-    if (candidate.detailedTasks) {
-        children.push(new Paragraph({ spacing: { after: 200 } }));
-        children.push(...candidate.detailedTasks.split('\n').filter(l => l.trim()).map(line => new Paragraph({ children: [new TextRun({ text: line.replace(/^- /, '') })], spacing: { after: 100 } })));
-    }
-  }
+  // Signature Block
+  children.push(new Paragraph({ spacing: { before: 800, after: 800 } }));
+  children.push(new Paragraph({ children: [new TextRun({ text: 'The undersigned certifies the above information is true and correct and will be responsible for any false statement discovered.' })] }));
+  children.push(new Paragraph({ spacing: { before: 800, after: 100 } }));
+  children.push(new Paragraph({ children: [new TextRun({ text: '------------------------', bold: true })] }));
+  children.push(new Paragraph({ children: [new TextRun({ text: candidate.candidateName || 'Candidate name', bold: true })] }));
 
   // Create doc
-  const doc = new Document({
+  const standardDoc = new Document({
     sections: [{
       properties: {},
       children: children
     }]
   });
 
-  const blob = await Packer.toBlob(doc);
+  const blob = await Packer.toBlob(standardDoc);
   const safeName = (candidate.candidateName || 'Unknown').replace(/\W+/g, '_');
   saveAs(blob, `CV_${safeName}_Formatted.docx`);
 };
