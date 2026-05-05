@@ -1177,11 +1177,11 @@ const MainContent = () => {
     // Log login
     const hasLoggedLoginRef = React.useRef(false);
     useEffect(() => {
-        if (user && profile && settings && accessToken && !hasLoggedLoginRef.current) {
+        if (user && profile && settings && !hasLoggedLoginRef.current) {
             hasLoggedLoginRef.current = true;
-            logActivity(`${profile?.email || user?.email} logged into the application`, 'login');
+            logActivity(`${profile?.email || user?.email} logged in to the dashboard.`, 'login');
         }
-    }, [user, profile, settings, accessToken]);
+    }, [user, profile, settings]);
 
     const addCandidate = async (c: Partial<Candidate>, driveFileId?: string) => {
         try {
