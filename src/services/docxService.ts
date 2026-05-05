@@ -3,6 +3,7 @@ import { saveAs } from 'file-saver';
 import { Candidate } from '../types';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
+import { fetchLogoImage, buildPetrobrasTemplate, buildShellTemplate, buildExxonMobilTemplate, buildBPTemplate, buildChevronTemplate } from './docxServiceCompany';
 
 export const getTemplateVariables = (templateBase64: string): string[] => {
     try {
@@ -212,21 +213,31 @@ export const exportToWord = async (candidate: Candidate, templateName: string = 
     case 'Bureau Veritas':
       doc = buildBrandedTemplate(candidate, 'Bureau Veritas', 'b20023');
       break;
-    case 'Petrobras':
-      doc = buildBrandedTemplate(candidate, 'Petrobras', '00AEEF');
+    case 'Petrobras': {
+      const logo = await fetchLogoImage('petrobras.com.br');
+      doc = await buildPetrobrasTemplate(candidate, logo);
       break;
-    case 'Shell':
-      doc = buildBrandedTemplate(candidate, 'Shell', 'FFD700', true); // Yellow logo needs dark text
+    }
+    case 'Shell': {
+      const logo = await fetchLogoImage('shell.com');
+      doc = await buildShellTemplate(candidate, logo);
       break;
-    case 'ExxonMobil':
-      doc = buildBrandedTemplate(candidate, 'ExxonMobil', 'E2132D');
+    }
+    case 'ExxonMobil': {
+      const logo = await fetchLogoImage('exxonmobil.com');
+      doc = await buildExxonMobilTemplate(candidate, logo);
       break;
-    case 'BP':
-      doc = buildBrandedTemplate(candidate, 'BP', '00A651');
+    }
+    case 'BP': {
+      const logo = await fetchLogoImage('bp.com');
+      doc = await buildBPTemplate(candidate, logo);
       break;
-    case 'Chevron':
-      doc = buildBrandedTemplate(candidate, 'Chevron', '0054A4');
+    }
+    case 'Chevron': {
+      const logo = await fetchLogoImage('chevron.com');
+      doc = await buildChevronTemplate(candidate, logo);
       break;
+    }
     default:
       isStandard = true;
       doc = new Document({ sections: [] }); // Placeholder, we will build it below
