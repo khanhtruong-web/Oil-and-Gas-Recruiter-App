@@ -70,8 +70,8 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
   const stats = {
     total: filteredCandidates.length,
     disciplines: usedDisciplines.size,
-    pending: filteredCandidates.filter(c => c.currentStatus?.toLowerCase() === 'pending_review' || c.currentStatus?.toLowerCase() === 'new' || c.currentStatus?.toLowerCase() === 'reviewed').length,
-    approved: filteredCandidates.filter(c => c.currentStatus?.toLowerCase() === 'approved').length,
+    pending: filteredCandidates.filter(c => c.currentStatus?.toLowerCase() === 'new' || c.currentStatus?.toLowerCase() === 'reviewing').length,
+    hired: filteredCandidates.filter(c => c.currentStatus?.toLowerCase() === 'hired').length,
     newThisMonth: filteredCandidates.filter(c => {
       const d = new Date();
       const mStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
@@ -112,12 +112,13 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
   const expData = Object.keys(expBins).map(k => ({ name: k, Candidates: expBins[k as keyof typeof expBins] }));
 
   // Pie Chart Data (Status)
-  const statusCounts = { New: 0, Reviewed: 0, Approved: 0, Rejected: 0 };
+  const statusCounts = { New: 0, Reviewing: 0, Shortlisted: 0, Hired: 0, Rejected: 0 };
   filteredCandidates.forEach(c => {
       const s = c.currentStatus?.toLowerCase();
       if (s === 'new') statusCounts.New++;
-      else if (s === 'reviewed') statusCounts.Reviewed++;
-      else if (s === 'approved') statusCounts.Approved++;
+      else if (s === 'reviewing') statusCounts.Reviewing++;
+      else if (s === 'shortlisted') statusCounts.Shortlisted++;
+      else if (s === 'hired') statusCounts.Hired++;
       else if (s === 'rejected') statusCounts.Rejected++;
       else statusCounts.New++; // Default mapped
   });
@@ -125,7 +126,7 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
       name: k,
       value: statusCounts[k as keyof typeof statusCounts]
   })).filter(d => d.value > 0);
-  const STATUS_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444'];
+  const STATUS_COLORS = ['#3b82f6', '#f59e0b', '#8b5cf6', '#10b981', '#ef4444'];
 
   const handleExportDashboard = () => {
     if (filteredCandidates.length === 0) {
@@ -213,8 +214,9 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
                   >
                       <option value="">All Statuses</option>
                       <option value="new">New</option>
-                      <option value="reviewed">Reviewed</option>
-                      <option value="approved">Approved</option>
+                      <option value="reviewing">Reviewing</option>
+                      <option value="shortlisted">Shortlisted</option>
+                      <option value="hired">Hired</option>
                       <option value="rejected">Rejected</option>
                   </select>
               </div>
@@ -248,7 +250,7 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
           { label: 'Total CVs', value: stats.total, color: 'text-slate-800', bg: 'bg-slate-900', icon: FileText },
           { label: 'Disciplines', value: stats.disciplines, color: 'text-cyan-600', bg: 'bg-cyan-500', icon: Layers },
           { label: 'Pending', value: stats.pending, color: 'text-amber-500', bg: 'bg-amber-500', icon: Clock },
-          { label: 'Approved', value: stats.approved, color: 'text-emerald-500', bg: 'bg-emerald-500', icon: CheckCircle2 },
+          { label: 'Hired', value: stats.hired, color: 'text-emerald-500', bg: 'bg-emerald-500', icon: CheckCircle2 },
           { label: 'New/Month', value: stats.newThisMonth, color: 'text-pink-500', bg: 'bg-pink-500', icon: Calendar },
           { label: 'Formatted', value: stats.formatted, color: 'text-blue-500', bg: 'bg-blue-500', icon: FileSpreadsheet },
         ].map((item, i) => (
