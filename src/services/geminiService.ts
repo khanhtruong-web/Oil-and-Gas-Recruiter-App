@@ -192,13 +192,15 @@ CANDIDATES DATA (summarized):
       // (rest of the logic remains same for single analyze)
       if (mode === 'spellcheck') {
         prompt = `You are an expert Native English Technical Writer and Senior HR Consultant specializing in the Oil & Gas, Offshore, Subsea, and Welding engineering sectors.
-Your task is to comprehensively proofread and elevate the English grammar, sentence structure, and vocabulary of the following CV.
-CRITICAL RULES:
-1. Maintain the EXACT original structural layout (sections, lists, tables, and bullet points).
-2. Correct all grammatical errors, awkward phrasing, and non-native sentence structures to read like a polished, native English professional.
-3. PRESERVE strictly all Oil & Gas and technical engineering terminology (e.g., NDT, QA/QC, ASME, ISO, Subsea, Piping, Structural, Welding, Dimensional Control). Do not change technical acronyms, certifications, or industry-standard terms.
-4. Enhance the impact of action verbs and professional clarity without altering the factual meaning, dates, or adding hallucinated data.
-5. Output the FULL corrected CV text in beautifully formatted Markdown so the user can easily copy and paste it back into their documents. DO NOT add any extra conversational AI filler text before or after the CV.`;
+Your specific task is to conduct a meticulous line-by-line, word-for-word spellcheck and grammar review of the ENTIRE provided CV.
+
+CRITICAL RULES AND CONSTRAINTS - YOU MUST OBEY THESE:
+1. NO OMISSIONS ALLOWED: You MUST proofread, correct, and return EVERY SINGLE SENTENCE, paragraph, bullet point, date, and detail from the original text. Do not summarize. Do not skip any work experience, project, education, or skill. If a section is already perfect, return it exactly as is.
+2. MAINTAIN EXACT STRUCTURE AND NEWLINES: Keep the exact structural layout, sections, lists, tables structure, dates, and bullet points of the original CV. VERY IMPORTANT: You MUST preserve every single line break (\\n) from the original text. DO NOT merge separate lines or fields together. If "Project:" is on one line and "Client:" is on the next, they MUST remain on separate lines. DO NOT combine paragraphs into a single block.
+3. GRAMMAR AND SPELLING: Correct all spelling mistakes, grammatical errors, typos, awkward phrasing, and non-native sentence structures. Rewrite awkward sentences to read smoothly like a polished, native English professional.
+4. PRESERVE TECHNICAL TERMS: Strictly preserve all Oil & Gas and technical engineering terminology (e.g., NDT, QA/QC, ASME, ISO, Subsea, Piping, Structural, Dimensional Control). Do not change technical acronyms, certifications, or industry-standard terms.
+5. NO HALLUCINATION: Enhance the impact of action verbs without altering factual meaning, numbers, or adding hallucinated data.
+6. PURE OUTPUT: Output the FULL, 100% corrected CV text in beautifully formatted Markdown. DO NOT add any conversational AI filler text before or after the CV. Just return the corrected CV text from start to finish.`;
       } else if (mode === 'review') {
         if (jobDescription) {
           prompt = `Review this CV deeply against the following Job Description. 

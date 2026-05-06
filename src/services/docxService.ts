@@ -3,7 +3,7 @@ import { saveAs } from 'file-saver';
 import { Candidate } from '../types';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
-import { fetchLogoImage, buildPetrobrasTemplate, buildShellTemplate, buildExxonMobilTemplate, buildBPTemplate, buildChevronTemplate } from './docxServiceCompany';
+import { fetchLogoImage, buildBureauVeritasTemplate, buildPetrobrasTemplate, buildShellTemplate, buildExxonMobilTemplate, buildBPTemplate, buildChevronTemplate } from './docxServiceCompany';
 
 export const getTemplateVariables = (templateBase64: string): string[] => {
     try {
@@ -210,9 +210,11 @@ export const exportToWord = async (candidate: Candidate, templateName: string = 
   const bSafeName = (candidate.candidateName || 'Unknown').replace(/\W+/g, '_');
 
   switch (templateName) {
-    case 'Bureau Veritas':
-      doc = buildBrandedTemplate(candidate, 'Bureau Veritas', 'b20023');
+    case 'Bureau Veritas': {
+      const logo = await fetchLogoImage('bureauveritas.com');
+      doc = await buildBureauVeritasTemplate(candidate, logo);
       break;
+    }
     case 'Petrobras': {
       const logo = await fetchLogoImage('petrobras.com.br');
       doc = await buildPetrobrasTemplate(candidate, logo);

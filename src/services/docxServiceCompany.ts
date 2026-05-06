@@ -24,6 +24,167 @@ const createParagraphs = (text: string) => {
     );
 };
 
+export const buildBureauVeritasTemplate = async (candidate: Candidate, logoBuf: ArrayBuffer | null) => {
+    const red = 'b20023';
+    const gray = '808080';
+    const blue = '0000FF';
+
+    const renderText = (text: string, options?: any) => {
+        return new TextRun({ text: text, font: 'Arial', size: 26, ...options });
+    };
+
+    const renderPar = (text: string, options?: any) => {
+        return new Paragraph({ children: [renderText(text, options)], spacing: { before: 60, after: 60 } });
+    };
+
+    const renderCell = (content: Paragraph | Paragraph[], isLeft: boolean = false, bgColor?: string) => {
+        return new TableCell({
+            children: Array.isArray(content) ? content : [content],
+            shading: bgColor ? { fill: bgColor, type: ShadingType.CLEAR, color: 'auto' } : undefined,
+            margins: { top: 100, bottom: 100, left: 150, right: 150 }
+        });
+    };
+
+    const rows: TableRow[] = [];
+
+    const headerLeftChildren = [];
+    if (logoBuf) {
+        try {
+            headerLeftChildren.push(new Paragraph({
+               alignment: AlignmentType.CENTER,
+               children: [new ImageRun({ data: logoBuf, transformation: { width: 120, height: 120 } })]
+            }));
+        } catch(e) {}
+    } else {
+        headerLeftChildren.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [renderText('BUREAU VERITAS', { color: 'FFFFFF', bold: true })] }));
+    }
+
+    rows.push(new TableRow({
+        children: [
+            new TableCell({
+                shading: { fill: red, type: ShadingType.CLEAR, color: 'auto' },
+                children: headerLeftChildren,
+                margins: { top: 150, bottom: 150, left: 150, right: 150 },
+            }),
+            new TableCell({
+                children: [
+                    new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        spacing: { before: 200, after: 100 },
+                        children: [new TextRun({ text: (candidate.candidateName || 'UNKNOWN').toUpperCase(), font: 'Arial', size: 56, color: '707070', bold: true })]
+                    }),
+                    new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        spacing: { before: 100, after: 200 },
+                        children: [new TextRun({ text: 'CURRICULUM VITAE', font: 'Arial', size: 52, color: red, bold: true })]
+                    })
+                ]
+            })
+        ]
+    }));
+
+    const addSection = (idx: string, title: string) => {
+        rows.push(new TableRow({
+            children: [
+                new TableCell({
+                    columnSpan: 2,
+                    shading: { fill: gray, type: ShadingType.CLEAR, color: 'auto' },
+                    margins: { top: 100, bottom: 100, left: 150, right: 150 },
+                    children: [
+                        new Paragraph({ children: [new TextRun({ text: `${idx}.   ${title}`, font: 'Arial', size: 26, color: 'FFFFFF', bold: true })] })
+                    ]
+                })
+            ]
+        }));
+    };
+
+    const addDetailRow = (lbl: string, val: string | Paragraph[], isValBold: boolean = false, isValBlue: boolean = false) => {
+        let rightP: Paragraph[];
+        if (Array.isArray(val)) {
+            rightP = val;
+        } else {
+            rightP = [renderPar(val, { bold: isValBold, color: isValBlue ? blue : '000000' })];
+        }
+
+        rows.push(new TableRow({
+            children: [
+                renderCell(renderPar(lbl, { color: 'FFFFFF' }), true, red),
+                renderCell(rightP, false)
+            ]
+        }));
+    };
+
+    const parseContentToBulletParagraphs = (text: string) => {
+        return safeText(text).split('\n').map(line => {
+            let t = line.trim();
+            if (!t) return null;
+            
+            if (/^([•\-\*✓>])\s/.test(t)) {
+                t = '❖ ' + t.substring(2).trim();
+            } else if (/^❖/.test(t)) {
+                t = '❖ ' + t.substring(1).trim();
+            } else if (/^[a-zA-Z0-9]/.test(t) && !/^❖/.test(t) && t.length > 50 && t.includes(' - ')) {
+                 // heuristic for long lines, don't force bullet
+            }
+            // We shouldn't force ❖ on all sentences.
+            
+            return new Paragraph({
+               children: [new TextRun({ text: t, font: 'Arial', size: 26 })],
+               spacing: { before: 60, after: 60 }
+            });
+        }).filter(Boolean) as Paragraph[];
+    };
+
+    addSection('1', 'GENERAL INFORMATION:');
+    addDetailRow('Proposed position', safeText(candidate.discipline), true, true);
+    addDetailRow('Home office', 'Bureau Veritas Vietnam, Vung Tau Office, Vung Tau, Vietnam');
+    addDetailRow('Gender', 'Male');
+    addDetailRow('Nationality', 'Vietnamese');
+
+    addSection('2', 'AREAS OF SPECIALITY:');
+    const summaryLines = safeText(candidate.professionalSummary).split('\n').map(l => l.trim()).filter(Boolean).map(l => renderPar(l));
+    addDetailRow('Summary', summaryLines);
+    if (candidate.keySkills) {
+        let skillsLines = parseContentToBulletParagraphs(candidate.keySkills);
+        addDetailRow('Key Skills', skillsLines);
+    }
+
+    addSection('3', 'EDUCATION:');
+    addDetailRow('Education', safeText(candidate.education));
+
+    if (candidate.certifications) {
+        addSection('4', 'PROFESSIONAL TRAININGS AND CERTIFICATES:');
+        let certsList = parseContentToBulletParagraphs(candidate.certifications);
+        addDetailRow('Certificates', certsList);
+    }
+
+    addSection('5', 'LANGUAGES AND DEGREE OF PROFICIENCY:');
+    addDetailRow('English', 'Good at reading, speaking, listening and writing');
+
+    if (candidate.detailedTasks) {
+        addSection('6', 'PROFESSIONAL EXPERIENCE & PROJECTS:');
+        let expDetails = parseContentToBulletParagraphs(candidate.detailedTasks);
+        if (expDetails.length === 0) expDetails = [renderPar('N/A')];
+        addDetailRow('Experience', expDetails);
+    }
+
+    const table = new Table({
+        rows: rows,
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        columnWidths: [3200, 6800],
+        borders: {
+            top: { style: BorderStyle.SINGLE, size: 2, color: '000000' },
+            bottom: { style: BorderStyle.SINGLE, size: 2, color: '000000' },
+            left: { style: BorderStyle.SINGLE, size: 2, color: '000000' },
+            right: { style: BorderStyle.SINGLE, size: 2, color: '000000' },
+            insideHorizontal: { style: BorderStyle.SINGLE, size: 2, color: '000000' },
+            insideVertical: { style: BorderStyle.SINGLE, size: 2, color: '000000' },
+        }
+    });
+
+    return new Document({ sections: [{ properties: {}, children: [table] }] });
+};
+
 export const buildPetrobrasTemplate = async (candidate: Candidate, logoBuf: ArrayBuffer | null) => {
     const color = '00AEEF';
     const children: any[] = [];
