@@ -26,7 +26,9 @@ import {
   Minimize,
   ChevronLeft,
   ChevronRight,
-  RefreshCw
+  RefreshCw,
+  SplitSquareHorizontal,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -962,6 +964,7 @@ const SessionTracker = () => {
 const MainContent = () => {
     const { user, profile, accessToken, logout, refreshTokenSilently, authorizeDrive } = useAuth();
     const [activeTab, setActiveTab] = useState('dashboard');
+    const [secondaryTab, setSecondaryTab] = useState<string | null>(null);
     const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [activities, setActivities] = useState<ActivityLog[]>([]);
     const [loading, setLoading] = useState(true);
@@ -1603,17 +1606,44 @@ const MainContent = () => {
     }
 
   const renderView = () => {
+    const isSplit = !!secondaryTab;
     return (
-      <div className="h-full relative">
-        <div className={activeTab === 'dashboard' ? 'block h-full' : 'hidden'}><Dashboard candidates={activeCandidates} activities={activities} /></div>
-        <div className={activeTab === 'folders' ? 'block h-full' : 'hidden'}><FolderManagement candidates={activeCandidates} /></div>
-        <div className={activeTab === 'extract' ? 'block h-full' : 'hidden'}><CVExtraction candidates={activeCandidates} onExpertAdded={addCandidate} /></div>
-        <div className={activeTab === 'templates' ? 'block h-full' : 'hidden'}><CompanyTemplates candidates={activeCandidates} /></div>
-        <div className={activeTab === 'ai' ? 'block h-full' : 'hidden'}><AITools candidates={activeCandidates} /></div>
-        <div className={activeTab === 'search' ? 'block h-full' : 'hidden'}><SmartSearch candidates={activeCandidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} /></div>
-        <div className={activeTab === 'personnel' ? 'block h-full' : 'hidden'}><PersonnelDirectory candidates={candidates} onStatusChange={updateCandidateStatus} onDisciplineChange={updateCandidateDiscipline} onDelete={deleteCandidate} onEmptyTrash={emptyTrash} /></div>
-        <div className={activeTab === 'reports' ? 'block h-full' : 'hidden'}><ReportsView candidates={activeCandidates} /></div>
-        <div className={activeTab === 'settings' ? 'block h-full' : 'hidden'}><Settings /></div>
+      <div className={`h-full relative flex w-full ${isSplit ? 'gap-0 divide-x-4 divide-slate-200/50' : ''}`}>
+        
+        {/* Main View */}
+        <div className={`flex-1 min-w-0 h-full relative ${activeTab ? 'block' : 'hidden'}`}>
+          <div className={activeTab === 'dashboard' ? 'block h-full' : 'hidden'}><Dashboard candidates={activeCandidates} activities={activities} /></div>
+          <div className={activeTab === 'folders' ? 'block h-full' : 'hidden'}><FolderManagement candidates={activeCandidates} /></div>
+          <div className={activeTab === 'extract' ? 'block h-full' : 'hidden'}><CVExtraction candidates={activeCandidates} onExpertAdded={addCandidate} /></div>
+          <div className={activeTab === 'templates' ? 'block h-full' : 'hidden'}><CompanyTemplates candidates={activeCandidates} /></div>
+          <div className={activeTab === 'ai' ? 'block h-full' : 'hidden'}><AITools candidates={activeCandidates} /></div>
+          <div className={activeTab === 'search' ? 'block h-full' : 'hidden'}><SmartSearch candidates={activeCandidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} /></div>
+          <div className={activeTab === 'personnel' ? 'block h-full' : 'hidden'}><PersonnelDirectory candidates={candidates} onStatusChange={updateCandidateStatus} onDisciplineChange={updateCandidateDiscipline} onDelete={deleteCandidate} onEmptyTrash={emptyTrash} /></div>
+          <div className={activeTab === 'reports' ? 'block h-full' : 'hidden'}><ReportsView candidates={activeCandidates} /></div>
+          <div className={activeTab === 'settings' ? 'block h-full' : 'hidden'}><Settings /></div>
+        </div>
+
+        {/* Secondary View (Split) */}
+        {isSplit && (
+          <div className="flex-1 min-w-0 h-full relative bg-slate-50/50">
+            <div className="absolute top-4 right-4 z-50">
+                <Button variant="outline" size="sm" className="bg-white/80 hover:bg-white shadow-sm h-8 px-2 gap-1 text-slate-500 rounded-lg" onClick={() => setSecondaryTab(null)}>
+                  <X className="w-4 h-4"/>
+                  <span className="text-xs font-bold font-mono">Close Split</span>
+                </Button>
+            </div>
+            <div className={`${secondaryTab === 'dashboard' ? 'block h-full' : 'hidden'} pt-2`}><Dashboard candidates={activeCandidates} activities={activities} /></div>
+            <div className={`${secondaryTab === 'folders' ? 'block h-full' : 'hidden'} pt-2`}><FolderManagement candidates={activeCandidates} /></div>
+            <div className={`${secondaryTab === 'extract' ? 'block h-full' : 'hidden'} pt-2`}><CVExtraction candidates={activeCandidates} onExpertAdded={addCandidate} /></div>
+            <div className={`${secondaryTab === 'templates' ? 'block h-full' : 'hidden'} pt-2`}><CompanyTemplates candidates={activeCandidates} /></div>
+            <div className={`${secondaryTab === 'ai' ? 'block h-full' : 'hidden'} pt-2`}><AITools candidates={activeCandidates} /></div>
+            <div className={`${secondaryTab === 'search' ? 'block h-full' : 'hidden'} pt-2`}><SmartSearch candidates={activeCandidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} /></div>
+            <div className={`${secondaryTab === 'personnel' ? 'block h-full' : 'hidden'} pt-2`}><PersonnelDirectory candidates={candidates} onStatusChange={updateCandidateStatus} onDisciplineChange={updateCandidateDiscipline} onDelete={deleteCandidate} onEmptyTrash={emptyTrash} /></div>
+            <div className={`${secondaryTab === 'reports' ? 'block h-full' : 'hidden'} pt-2`}><ReportsView candidates={activeCandidates} /></div>
+            <div className={`${secondaryTab === 'settings' ? 'block h-full' : 'hidden'} pt-2`}><Settings /></div>
+          </div>
+        )}
+        
       </div>
     );
   };
@@ -1724,6 +1754,24 @@ const MainContent = () => {
                       <span className={`ml-auto px-2 py-0.5 rounded text-[10px] font-black transition-colors duration-300 ${isActive ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700'}`}>
                         {candidates.length}
                       </span>
+                    )}
+
+                    {!sidebarCollapsed && !item.action && (
+                      <div
+                        className={`ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-slate-700/80 ${secondaryTab === item.id ? 'opacity-100 bg-slate-700 text-white' : 'text-slate-400'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (secondaryTab === item.id) {
+                            setSecondaryTab(null);
+                          } else {
+                            if (activeTab === item.id) setActiveTab('dashboard'); // Prevent both tabs being the same if opened as secondary
+                            setSecondaryTab(item.id);
+                          }
+                        }}
+                        title={secondaryTab === item.id ? "Close split view" : "Open in split view"}
+                      >
+                        <SplitSquareHorizontal className="w-4 h-4" />
+                      </div>
                     )}
                   </button>
                 )
