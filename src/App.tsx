@@ -1224,23 +1224,23 @@ const MainContent = () => {
                     let uploadNeeded = !driveFileId;
                     
                     if (uploadNeeded && c.fileUrl && c.fileUrl.startsWith('blob:')) {
-                        toast.loading('Saving CV to Temporary Drive...', { id: 'drive-sync' });
-                        // Create a temporary staging folder in the root
+                        toast.loading('Saving CV to Drive Discipline Folder...', { id: 'drive-sync' });
                         const { findOrCreateFolder } = await import('./services/driveService');
-                        const tempFolderId = await findOrCreateFolder('_TEMP_CVS_PROCESSING', currentRootId);
+                        const safeFolderName = getSafeDisciplineFolderName(c.discipline || 'Uncategorized');
+                        const targetFolderId = await findOrCreateFolder(safeFolderName, currentRootId);
                         
-                        console.log("Uploading local file to Temp Drive folder:", c.fileUrl);
+                        console.log("Uploading local file to Drive folder:", safeFolderName, c.fileUrl);
                         const blobRes = await fetch(c.fileUrl, { redirect: "follow" });
                         if (!blobRes.ok) throw new Error("Failed to fetch local blob");
                         const blob = await blobRes.blob();
                         const fileOb = new File([blob], c.fileName || 'CV Document', { type: c.fileType || 'application/pdf' });
                         const { uploadFileToDrive } = await import('./services/driveService');
-                        const newDriveId = await uploadFileToDrive(fileOb, tempFolderId, c.fileName);
+                        const newDriveId = await uploadFileToDrive(fileOb, targetFolderId, c.fileName);
                         
                         if (newDriveId) {
                             finalDriveId = newDriveId;
                             finalDriveUrl = `https://drive.google.com/file/d/${newDriveId}/view`;
-                            toast.success('CV stored in Temp folder', { id: 'drive-sync' });
+                            toast.success(`CV stored in /${safeFolderName}`, { id: 'drive-sync' });
                         } else {
                             toast.error('Drive upload failed - No file ID generated', { id: 'drive-sync' });
                         }
@@ -1399,22 +1399,6 @@ const MainContent = () => {
                 updatedAt: serverTimestamp()
             });
 
-            // Auto Move file in Drive if it exists
-            if ((status === 'Hired' || status === 'Shortlisted') && accessToken && cand.driveFileId && settings?.driveRootFolderId) {
-                try {
-                    const { findOrCreateFolder, moveFile } = await import('./services/driveService');
-                    const safeFolderName = getSafeDisciplineFolderName(cand.discipline || 'Uncategorized');
-                    const targetFolderId = await findOrCreateFolder(safeFolderName, settings.driveRootFolderId);
-                    if (targetFolderId) {
-                        await moveFile(cand.driveFileId, targetFolderId);
-                        toast.success(`Google Drive: CV moved to /${safeFolderName}`);
-                    }
-                } catch (e: any) {
-                    console.error("Failed to move file in Drive:", e);
-                    toast.error(`Drive Error: Could not move CV - ${e.message}`);
-                }
-            }
-
             // Auto Backup on status change to "Approved" (Hired/Shortlisted)
             if ((status === 'Hired' || status === 'Shortlisted') && settings?.autoBackupEnabled && accessToken && settings?.googleSheetId) {
                 const { syncToGoogleSheets } = await import('./services/sheetService');
@@ -1501,18 +1485,19 @@ const MainContent = () => {
                 updatedAt: serverTimestamp()
             });
             
-            // If the candidate is Hired/Shortlisted, their file in Google Drive should be moved to the new discipline folder
-            if ((cand?.currentStatus === 'Hired' || cand?.currentStatus === 'Shortlisted' || (cand as any)?.status === 'Hired' || (cand as any)?.status === 'Shortlisted') && accessToken && cand.driveFileId && settings?.driveRootFolderId) {
+            // Create a shortcut of the file in Google Drive in the new discipline folder
+            if (accessToken && cand.driveFileId && settings?.driveRootFolderId) {
                 try {
-                    const { findOrCreateFolder, moveFile } = await import('./services/driveService');
+                    const { findOrCreateFolder, createShortcut } = await import('./services/driveService');
                     const safeFolderName = getSafeDisciplineFolderName(discipline || 'Uncategorized');
                     const targetFolderId = await findOrCreateFolder(safeFolderName, settings.driveRootFolderId);
                     if (targetFolderId) {
-                        await moveFile(cand.driveFileId, targetFolderId);
-                        toast.success(`Google Drive: CV moved to /${safeFolderName}`);
+                        const shortcutName = `[Shortcut] ${cand.candidateName || 'CV'}`;
+                        await createShortcut(cand.driveFileId, targetFolderId, shortcutName);
+                        toast.success(`Google Drive: Shortcut created in /${safeFolderName}`);
                     }
                 } catch (e: any) {
-                    console.error("Failed to move file in Drive when discipline changed:", e);
+                    console.error("Failed to create shortcut in Drive when discipline changed:", e);
                 }
             }
 
@@ -1621,7 +1606,7 @@ const MainContent = () => {
       <div className="h-full relative">
         <div className={activeTab === 'dashboard' ? 'block h-full' : 'hidden'}><Dashboard candidates={activeCandidates} activities={activities} /></div>
         <div className={activeTab === 'folders' ? 'block h-full' : 'hidden'}><FolderManagement candidates={activeCandidates} /></div>
-        <div className={activeTab === 'extract' ? 'block h-full' : 'hidden'}><CVExtraction onExpertAdded={addCandidate} /></div>
+        <div className={activeTab === 'extract' ? 'block h-full' : 'hidden'}><CVExtraction candidates={activeCandidates} onExpertAdded={addCandidate} /></div>
         <div className={activeTab === 'templates' ? 'block h-full' : 'hidden'}><CompanyTemplates candidates={activeCandidates} /></div>
         <div className={activeTab === 'ai' ? 'block h-full' : 'hidden'}><AITools candidates={activeCandidates} /></div>
         <div className={activeTab === 'search' ? 'block h-full' : 'hidden'}><SmartSearch candidates={activeCandidates} onStatusChange={updateCandidateStatus} onDelete={deleteCandidate} /></div>

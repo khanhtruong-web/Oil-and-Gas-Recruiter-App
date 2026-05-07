@@ -290,7 +290,7 @@ export const Settings = () => {
                                     </li>
                                     <li className="flex items-start gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 shrink-0 px-0" />
-                                        <span>When a candidate's status is changed to <strong>"Shortlisted"</strong> or <strong>"Hired"</strong>, their CV is automatically moved to the Discipline folder in the Drive Destination.</span>
+                                        <span>When a candidate's CV is confirmed after extraction, it is <strong>automatically saved directly</strong> to its primary Discipline folder. Any subsequent changes to their discipline will intuitively <strong>create a Shortcut</strong> in the new category, ensuring a clean Drive while supporting multiple disciplines.</span>
                                     </li>
                                     <li className="flex items-start gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 shrink-0 px-0" />

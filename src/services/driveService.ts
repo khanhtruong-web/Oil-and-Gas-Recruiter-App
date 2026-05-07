@@ -96,6 +96,20 @@ export async function findOrCreateFolder(name: string, parentId?: string): Promi
     return data.id;
 }
 
+export async function createShortcut(fileId: string, parentFolderId: string, name: string): Promise<string> {
+    const res = await callGoogleApiDirect('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name: name,
+            mimeType: 'application/vnd.google-apps.shortcut',
+            shortcutDetails: { targetId: fileId },
+            parents: [parentFolderId]
+        })
+    });
+    return res.id;
+}
+
 export async function moveFile(fileId: string, targetFolderId: string): Promise<void> {
     // Need to get previous parents to remove them
     const file = await callGoogleApiDirect(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`);

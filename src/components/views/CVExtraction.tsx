@@ -27,10 +27,10 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
-export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Candidate>, driveFileId?: string) => void }) => {
+export const CVExtraction = ({ candidates, onExpertAdded }: { candidates: Candidate[], onExpertAdded: (c: Partial<Candidate>, driveFileId?: string) => void }) => {
     const [loading, setLoading] = useState(false);
     const [activeAction, setActiveAction] = useState<string>('');
-    const [extractedList, setExtractedList] = useState<(Partial<Candidate> & { id: string, fileName: string, driveFileId?: string, rawText?: string, rawHtml?: string, fileUrl?: string, fileType?: string })[]>([]);
+    const [extractedList, setExtractedList] = useState<(Partial<Candidate> & { id: string, fileName: string, driveFileId?: string, rawText?: string, rawHtml?: string, fileUrl?: string, fileType?: string, duplicateWarning?: string })[]>([]);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [stagedFiles, setStagedFiles] = useState<{ id: string, file: File, url: string, parsing?: boolean, error?: string }[]>([]);
     
@@ -47,7 +47,7 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
     const [leftPanelWidth, setLeftPanelWidth] = useState(65); // percentage
     const [isDragging, setIsDragging] = useState(false);
 
-    const { disciplines: DISCIPLINE_CATALOG } = useDisciplines();
+    const { disciplines: DISCIPLINE_CATALOG, disciplineDetails } = useDisciplines();
 
     useEffect(() => {
         if (!user) return;
@@ -102,14 +102,21 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
         setLoading(true);
         setActiveAction(`Processing ${stagedFiles.length} files...`);
         
-        const newExtracted = [...extractedList];
-        const remainingStaged = [...stagedFiles];
+        const newExtracted: any[] = [];
+        
+        // Define concurrency limit
+        const CONCURRENCY_LIMIT = 3;
+        let index = 0;
+        let completed = 0;
+        
+        // Set all to parsing state initially so UI looks active
+        setStagedFiles(prev => prev.map(f => ({ ...f, parsing: true })));
 
-        for (let i = 0; i < stagedFiles.length; i++) {
-            const staged = stagedFiles[i];
-            // Update UI to show this file is parsing
-            setStagedFiles(prev => prev.map(f => f.id === staged.id ? { ...f, parsing: true } : f));
-            setActiveAction(`Parsing file ${i+1}/${stagedFiles.length}: ${staged.file.name}`);
+        const processNext = async () => {
+            if (index >= stagedFiles.length) return;
+            
+            const currentIndex = index++;
+            const staged = stagedFiles[currentIndex];
             
             try {
                 let text = '';
@@ -126,11 +133,29 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
                 } else {
                     toast.warning(`Skipped ${file.name} (unsupported format)`);
                     setStagedFiles(prev => prev.filter(f => f.id !== staged.id));
-                    continue;
+                    completed++;
+                    setActiveAction(`Processed ${completed}/${stagedFiles.length} files...`);
+                    await processNext();
+                    return;
                 }
 
-                setActiveAction(`AI Analyzing ${file.name}...`);
-                const parsed = await geminiService.parseCV(text);
+                const parsed = await geminiService.parseCV(text, disciplineDetails);
+                
+                // Duplicate check
+                let dupWarning = '';
+                if (parsed.candidateName) {
+                    const existingNameMatch = candidates.find(c => c.candidateName?.toLowerCase() === parsed.candidateName?.toLowerCase());
+                    if (existingNameMatch) {
+                        dupWarning = `Potential duplicate: ${existingNameMatch.candidateName} already exists in database (Status: ${existingNameMatch.currentStatus}).`;
+                    }
+                }
+                if (parsed.email && !dupWarning) {
+                    const existingEmailMatch = candidates.find(c => c.email?.toLowerCase() === parsed.email?.toLowerCase());
+                    if (existingEmailMatch) {
+                        dupWarning = `Potential duplicate: Email ${existingEmailMatch.email} already exists in database.`;
+                    }
+                }
+
                 newExtracted.push({
                     ...parsed,
                     id: staged.id,
@@ -138,8 +163,10 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
                     rawText: text,
                     rawHtml: rawHtml,
                     fileUrl: staged.url,
-                    fileType: file.type
+                    fileType: file.type,
+                    duplicateWarning: dupWarning
                 });
+                
                 // Remove from staged since it succeeded
                 setStagedFiles(prev => prev.filter(f => f.id !== staged.id));
             } catch (err: any) {
@@ -154,9 +181,20 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
                 toast.error(`Failed to process ${staged.file.name}: ${errorMsg}`);
                 setStagedFiles(prev => prev.map(f => f.id === staged.id ? { ...f, parsing: false, error: errorMsg } : f));
             }
+            
+            completed++;
+            setActiveAction(`Processed ${completed}/${stagedFiles.length} files...`);
+            await processNext();
+        };
+
+        const workers = [];
+        for (let i = 0; i < Math.min(CONCURRENCY_LIMIT, stagedFiles.length); i++) {
+            workers.push(processNext());
         }
         
-        setExtractedList(newExtracted);
+        await Promise.all(workers);
+        
+        setExtractedList(prev => [...prev, ...newExtracted]);
         setLoading(false);
         setActiveAction('');
     };
@@ -399,9 +437,16 @@ export const CVExtraction = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Can
                                                         </td>
                                                         <td className="p-4 text-slate-400 font-mono text-xs">{index + 1}</td>
                                                         <td className="p-4">
-                                                            <div className="flex items-center gap-3 text-slate-600" title={cv.fileName}>
-                                                                <FileText className="w-4 h-4 shrink-0 text-slate-400" />
-                                                                <span className="whitespace-normal break-words font-black text-slate-600 text-[11px] uppercase tracking-tight leading-tight">{cv.fileName}</span>
+                                                            <div className="flex flex-col gap-1" title={cv.fileName}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <FileText className="w-4 h-4 shrink-0 text-slate-400" />
+                                                                    <span className="whitespace-normal break-words font-black text-slate-600 text-[11px] uppercase tracking-tight leading-tight">{cv.fileName}</span>
+                                                                </div>
+                                                                {cv.duplicateWarning && (
+                                                                    <div className="text-[10px] text-orange-600 font-semibold bg-orange-50 px-2 py-0.5 rounded flex items-center gap-1 mt-1">
+                                                                        <span className="shrink-0">⚠️</span> {cv.duplicateWarning}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </td>
                                                         <td className="p-4">

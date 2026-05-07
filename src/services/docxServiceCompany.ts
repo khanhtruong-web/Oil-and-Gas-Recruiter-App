@@ -52,7 +52,7 @@ export const buildBureauVeritasTemplate = async (candidate: Candidate, logoBuf: 
         try {
             headerLeftChildren.push(new Paragraph({
                alignment: AlignmentType.CENTER,
-               children: [new ImageRun({ data: logoBuf, transformation: { width: 120, height: 120 } })]
+               children: [new ImageRun({ type: 'png', data: logoBuf, transformation: { width: 120, height: 120 } })]
             }));
         } catch(e) {}
     } else {
@@ -194,6 +194,7 @@ export const buildPetrobrasTemplate = async (candidate: Candidate, logoBuf: Arra
     if (logoBuf) {
         try {
             hdrChildren.push(new ImageRun({
+                type: 'png',
                 data: logoBuf,
                 transformation: { width: 150, height: 150 },
             }));
@@ -247,6 +248,7 @@ export const buildShellTemplate = async (candidate: Candidate, logoBuf: ArrayBuf
     if (logoBuf) {
         try {
             hdrChildren.push(new ImageRun({
+                type: 'png',
                 data: logoBuf,
                 transformation: { width: 100, height: 100 },
             }));
@@ -317,6 +319,7 @@ export const buildExxonMobilTemplate = async (candidate: Candidate, logoBuf: Arr
     if (logoBuf) {
         try {
             hdrChildren.push(new ImageRun({
+                type: 'png',
                 data: logoBuf,
                 transformation: { width: 140, height: 50 },
             }));
@@ -359,6 +362,7 @@ export const buildBPTemplate = async (candidate: Candidate, logoBuf: ArrayBuffer
     if (logoBuf) {
         try {
             hdrChildren.push(new ImageRun({
+                type: 'png',
                 data: logoBuf,
                 transformation: { width: 80, height: 80 },
             }));
@@ -401,6 +405,7 @@ export const buildChevronTemplate = async (candidate: Candidate, logoBuf: ArrayB
     if (logoBuf) {
         try {
             hdrChildren.push(new ImageRun({
+                type: 'png',
                 data: logoBuf,
                 transformation: { width: 80, height: 90 },
             }));

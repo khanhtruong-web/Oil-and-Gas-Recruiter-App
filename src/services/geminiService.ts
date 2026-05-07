@@ -67,16 +67,27 @@ class GeminiService {
     required: ["candidateName", "yearsExp", "discipline", "professionalSummary"]
   };
 
-  async parseCV(text: string): Promise<Partial<Candidate>> {
+  async parseCV(text: string, disciplinesList?: any[]): Promise<Partial<Candidate>> {
     if (!this.ai) await this.initClient();
     if (!this.ai) throw new Error("API Key logic failed: Gemini API key is required.");
+
+    let disciplineInstruction = "For 'discipline', 'specializedField', and 'workFields', you MUST provide the most accurate English technical terms for the Oil & Gas industry.";
+    if (disciplinesList && disciplinesList.length > 0) {
+      if (typeof disciplinesList[0] === 'string') {
+        disciplineInstruction += `\nFor 'discipline', you MUST strictly choose the closest match from this exact list if possible: \n[${disciplinesList.join(", ")}]. If none fit, you may propose a related term.`;
+      } else {
+        const discStr = disciplinesList.map(d => `- ${d.name}: ${d.description || ''} (Keywords: ${d.keywords?.join(', ') || ''})`).join('\n');
+        disciplineInstruction += `\nFor 'discipline', you MUST strictly choose the closest match from this exact list of categories (use exactly the Name):\n${discStr}\nIf completely unrelated, you may propose a different term.`;
+      }
+    }
 
     try {
       const response = await this.ai.models.generateContent({
         model: this.modelName,
         contents: `Act as a professional recruiter. Extract structured data from this CV text.
 The CV may be in English, Vietnamese, or a mix of both. 
-For 'discipline', 'specializedField', and 'workFields', you MUST provide the most accurate English technical terms for the Oil & Gas industry.
+${disciplineInstruction}
+
 For 'professionalSummary' (Pitch Summary), generate a comprehensive professional bio in English.
 
 For 'detailedTasks', carefully extract the detailed tabular information from the PDF text. Simplify any complex tables into clear, structured markdown lists (e.g. bullet points for duties, with clear headers for dates/projects). Ensure high accuracy of dates, client names, roles, and project descriptions.
@@ -177,8 +188,9 @@ CV TEXT:\n\n${text.substring(0, 30000)}`
     if (mode === 'match' && allCandidates && jobDescription) {
       prompt = `Act as an expert technical recruiter matching CVs against a Job Description.
 Please find the best matching candidates for the following Job Description out of the provided list of candidates. 
-For each top candidate, explain why they are a good fit, their scores against the JD, and explicitly list matching and missing certificates.
-Format your response as a professional report with a summary table at the top including ID, Name, Discipline, and Match Score (0-100%).
+For each top candidate, explain why they are a good fit, their Suitability Score against the JD (0-100%), and explicitly list matching and missing certificates.
+Crucially, based on their experience and certificates, suggest the BEST matching Discipline for each candidate (even if it differs from what is listed).
+Format your response as a professional report with a summary table at the top including ID, Name, Current Discipline, Best Fit Discipline, and Suitability Score.
 Then provide details for each top-ranked candidate.
 
 JOB DESCRIPTION:
@@ -207,6 +219,7 @@ CRITICAL RULES AND CONSTRAINTS - YOU MUST OBEY THESE:
 1. Provide Strengths and Weaknesses relative to the JD.
 2. Provide a Suitability Score (0-100%).
 3. Deeply analyze and compare their Certificates vs the JD requirements. Explicitly filter and list "Matching Certificates" and "Missing Certificates".
+4. Suggest the BEST matching Discipline for this candidate based on their overall profile and the JD.
 
 JOB DESCRIPTION:
 ${jobDescription.substring(0, 10000)}
