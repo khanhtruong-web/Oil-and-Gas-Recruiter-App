@@ -253,7 +253,7 @@ export const PersonnelDirectory = ({
                 )}
                 <div className="overflow-x-auto bg-white rounded-2xl border border-slate-200 shadow-sm">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-50/80 text-[10px] font-black uppercase tracking-widest text-[#64748b] border-b border-slate-200">
+                        <thead className="bg-slate-100 text-[11px] font-black uppercase tracking-widest text-slate-800 border-b-2 border-slate-200">
                             <tr>
                                 <th className="p-4 w-12 text-center">
                                     <Checkbox 
@@ -287,7 +287,7 @@ export const PersonnelDirectory = ({
                                             <div className="w-8 h-8 rounded-lg bg-[#6366f1] text-white flex shrink-0 items-center justify-center font-bold text-[10px]">
                                                 {getInitials(c.candidateName)}
                                             </div>
-                                            <span className="font-bold text-slate-800 text-[11px] leading-tight break-words whitespace-normal inline-block">{c.candidateName}</span>
+                                            <span className="font-black text-slate-900 text-xs leading-tight break-words whitespace-normal inline-block">{c.candidateName}</span>
                                         </div>
                                     </td>
                                     <td className="p-4">
@@ -302,7 +302,11 @@ export const PersonnelDirectory = ({
                                             <span className="text-[11px] font-bold text-slate-600 whitespace-nowrap">{c.phone}</span>
                                         ) : <span className="text-[11px] text-slate-400">---</span>}
                                     </td>
-                                    <td className="p-4 text-slate-600 font-bold text-[11px] tabular-nums">{c.yearsExp}</td>
+                                    <td className="p-4 text-center">
+                                        <span className="inline-flex items-center justify-center min-w-[2.5rem] h-7 px-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-black text-xs shadow-sm">
+                                            {c.yearsExp}
+                                        </span>
+                                    </td>
                                     <td className="p-4">
                                         <span className="text-[11px] font-bold text-slate-500 whitespace-normal break-words min-w-[100px] block border-b border-dotted border-slate-300" title={c.education}>{c.education || '---'}</span>
                                     </td>
@@ -317,7 +321,7 @@ export const PersonnelDirectory = ({
                                             value={c.discipline || ''} 
                                             onValueChange={(val) => handleRowDisciplineChange(c.id!, val)}
                                         >
-                                            <SelectTrigger className="h-7 px-2 text-[9px] font-bold uppercase w-full max-w-[180px] min-w-[100px] rounded-full text-slate-600 bg-white border-slate-200">
+                                            <SelectTrigger className="h-7 px-2.5 text-[10px] font-bold uppercase w-full max-w-[180px] min-w-[100px] rounded-lg text-indigo-700 bg-indigo-50 border-indigo-200 shrink-0">
                                                 <SelectValue placeholder="Select discipline">{c.discipline}</SelectValue>
                                             </SelectTrigger>
                                             <SelectContent>

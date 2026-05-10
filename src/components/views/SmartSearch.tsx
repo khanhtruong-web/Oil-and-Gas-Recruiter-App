@@ -110,24 +110,28 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
                     {filtered.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
-                                <thead className="bg-slate-50 text-slate-500 font-black text-[10px] uppercase tracking-widest">
+                                <thead className="bg-slate-100 text-slate-800 font-black text-xs uppercase tracking-widest border-b-2 border-slate-200">
                                     <tr>
-                                        <th className="px-6 py-4">Name</th>
-                                        <th className="px-6 py-4">Discipline</th>
-                                        <th className="px-6 py-4">Exp (Yrs)</th>
-                                        <th className="px-6 py-4">Specialization</th>
+                                        <th className="px-6 py-4 text-left">Name</th>
+                                        <th className="px-6 py-4 text-left">Discipline</th>
+                                        <th className="px-6 py-4 text-center">Exp (Yrs)</th>
+                                        <th className="px-6 py-4 text-left">Specialization</th>
                                         <th className="px-6 py-4 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {filtered.map(c => (
-                                        <tr key={c.id} className="hover:bg-slate-50/50">
-                                            <td className="px-6 py-4 font-bold text-slate-800">{c.candidateName}</td>
+                                        <tr key={c.id} className="hover:bg-slate-50/80 transition-colors group">
+                                            <td className="px-6 py-4 font-black text-slate-900 text-sm whitespace-nowrap">{c.candidateName}</td>
                                             <td className="px-6 py-4">
-                                                <Badge variant="secondary" className="text-[9px] uppercase">{c.discipline}</Badge>
+                                                <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 font-bold uppercase tracking-wider text-[10px] px-2.5 py-1">{c.discipline}</Badge>
                                             </td>
-                                            <td className="px-6 py-4 font-medium">{c.yearsExp}</td>
-                                            <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate">{c.specializedField}</td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="inline-flex items-center justify-center min-w-[2.5rem] h-7 px-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-black text-xs shadow-sm">
+                                                    {c.yearsExp}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-600 text-xs font-medium max-w-[200px] truncate">{c.specializedField}</td>
                                             <td className="px-6 py-4 text-right flex justify-end gap-1">
                                                 {(c.driveFileUrl || c.fileUrl) && (
                                                     <Button variant="ghost" size="icon" title="Open CV File" onClick={() => window.open(c.driveFileUrl || c.fileUrl, '_blank')}>
