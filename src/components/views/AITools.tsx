@@ -245,17 +245,16 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
                                              onChange={(e) => setSearchTerm(e.target.value)}
                                          />
                                      </div>
-                                     <Select value={filterDiscipline} onValueChange={setFilterDiscipline}>
-                                         <SelectTrigger className="w-full sm:w-48 h-10 border-slate-200">
-                                             <SelectValue placeholder="Discipline" />
-                                         </SelectTrigger>
-                                         <SelectContent>
-                                             <SelectItem value="All">All Disciplines</SelectItem>
-                                             {disciplines.map(d => (
-                                                 <SelectItem key={d as string} value={d as string}>{d as string}</SelectItem>
-                                             ))}
-                                         </SelectContent>
-                                     </Select>
+                                     <select 
+                                         className="h-10 border border-slate-200 shadow-sm rounded-md px-3 text-sm font-medium text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none w-full sm:w-48 cursor-pointer"
+                                         value={filterDiscipline} 
+                                         onChange={(e) => setFilterDiscipline(e.target.value)}
+                                     >
+                                         <option value="All">All Disciplines</option>
+                                         {disciplines.map(d => (
+                                             <option key={d as string} value={d as string}>{d as string}</option>
+                                         ))}
+                                     </select>
                                 </div>
                             </div>
                             

@@ -46,8 +46,8 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
             <Card className="border-none shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
-                        <CardTitle className="text-xl font-black">Smart Search</CardTitle>
-                        <CardDescription>Search and filter expertise by multidimensional criteria</CardDescription>
+                        <CardTitle className="text-2xl font-black text-slate-900">Smart Search</CardTitle>
+                        <CardDescription className="text-slate-500 font-medium">Search and filter expertise by multidimensional criteria</CardDescription>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="ghost" onClick={() => {
@@ -78,18 +78,17 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
                             </div>
                         </div>
                         <div>
-                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Discipline</label>
-                            <Select value={discipline} onValueChange={setDiscipline}>
-                                <SelectTrigger className="h-11">
-                                    <SelectValue placeholder="All Disciplines" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All">All Disciplines</SelectItem>
-                                    {DISCIPLINE_CATALOG.map(d => (
-                                        <SelectItem key={d} value={d}>{d}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1 mb-1 block">Discipline</label>
+                            <select 
+                                className="h-11 w-full border border-slate-200 shadow-sm rounded-md px-3 text-sm font-medium text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none cursor-pointer"
+                                value={discipline} 
+                                onChange={(e) => setDiscipline(e.target.value)}
+                            >
+                                <option value="All">All Disciplines</option>
+                                {DISCIPLINE_CATALOG.map(d => (
+                                    <option key={d} value={d}>{d}</option>
+                                ))}
+                            </select>
                         </div>
                         <div className="flex gap-2">
                             <div className="flex-1">
@@ -110,7 +109,7 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
                     {filtered.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
-                                <thead className="bg-slate-100 text-slate-800 font-black text-xs uppercase tracking-widest border-b-2 border-slate-200">
+                                <thead className="bg-slate-100 text-slate-900 font-black text-xs uppercase tracking-widest border-b-2 border-slate-200">
                                     <tr>
                                         <th className="px-6 py-4 text-left">Name</th>
                                         <th className="px-6 py-4 text-left">Discipline</th>
@@ -175,54 +174,145 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
             </Card>
 
             <Dialog open={!!selectedCandidate} onOpenChange={() => setSelectedCandidate(null)}>
-                <DialogContent className="max-w-3xl">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-black flex items-center justify-between pr-8">
-                            <span>{selectedCandidate?.candidateName}</span>
+                <DialogContent className="max-w-[96vw] sm:max-w-[96vw] md:max-w-[96vw] lg:max-w-[96vw] w-full h-[96vh] flex flex-col p-0 overflow-hidden bg-slate-50 border-none sm:rounded-2xl transition-all duration-300">
+                    <div className="bg-white border-b border-slate-100 p-4 lg:p-6 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg lg:text-xl font-black shadow-lg shadow-indigo-600/20">
+                                {selectedCandidate?.candidateName?.charAt(0)?.toUpperCase()}
+                            </div>
+                            <div>
+                                <DialogTitle className="text-xl lg:text-2xl font-black text-slate-900">{selectedCandidate?.candidateName}</DialogTitle>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2 lg:gap-3">
+                                    <Badge variant="outline" className="bg-indigo-50 text-indigo-800 border-indigo-200 font-bold uppercase tracking-wider text-[10px] lg:text-[11px] px-2.5 py-0.5">
+                                        {selectedCandidate?.discipline}
+                                    </Badge>
+                                    <div className="text-xs lg:text-sm font-medium text-slate-500 flex items-center gap-1">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                        {selectedCandidate?.currentStatus}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
                             {(selectedCandidate?.driveFileUrl || selectedCandidate?.fileUrl) && (
-                                <Button variant="outline" size="sm" onClick={() => window.open(selectedCandidate.driveFileUrl || selectedCandidate.fileUrl, '_blank')} className="gap-2">
+                                <Button size="sm" onClick={() => window.open(selectedCandidate.driveFileUrl || selectedCandidate.fileUrl, '_blank')} className="gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-sm font-bold h-9">
                                     <ExternalLink className="w-4 h-4" />
-                                    Open CV
+                                    <span className="hidden sm:inline">Open Original CV</span>
                                 </Button>
                             )}
-                        </DialogTitle>
-                    </DialogHeader>
+                        </div>
+                    </div>
                     {selectedCandidate && (
-                        <div className="grid grid-cols-2 gap-4 mt-4">
-                            <div>
-                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Discipline</p>
-                                <p className="font-bold">{selectedCandidate.discipline}</p>
+                        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-100/50">
+                            {/* Left: Document Preview */}
+                            <div className="hidden lg:flex w-[65%] border-r border-slate-200 bg-slate-200 p-2 lg:p-4">
+                                {(selectedCandidate.driveFileUrl || selectedCandidate.fileUrl) ? (
+                                    <iframe 
+                                        src={(selectedCandidate.driveFileUrl || selectedCandidate.fileUrl || '').replace(/\/view.*$/, '/preview')}
+                                        className="w-full h-full rounded-xl shadow-sm bg-white"
+                                        title="CV Preview"
+                                    />
+                                ) : (
+                                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-slate-100 rounded-xl shadow-inner">
+                                        <Eye className="w-12 h-12 mb-3 text-slate-300" />
+                                        <p className="font-medium">No document available for preview</p>
+                                    </div>
+                                )}
                             </div>
-                            <div>
-                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Years Experience</p>
-                                <p className="font-bold">{selectedCandidate.yearsExp}</p>
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Status</p>
-                                <div className="flex items-center gap-2">
-                                    <Badge>{selectedCandidate.currentStatus}</Badge>
-                                    {onStatusChange && (
-                                        <Select 
-                                            value={selectedCandidate.currentStatus}
-                                            onValueChange={(val) => onStatusChange(selectedCandidate.id, val as CandidateStatus)}
-                                        >
-                                            <SelectTrigger className="h-8 text-[11px] w-[200px]">
-                                                <SelectValue placeholder="Update Status" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {['New', 'Screening', 'Interviewing', 'Shortlisted', 'Hired', 'Rejected'].map(s => (
-                                                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                            
+                            {/* Right: Condensed Info */}
+                            <div className="w-full lg:w-[35%] overflow-y-auto p-4 lg:p-6 space-y-5 bg-white">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Experience</p>
+                                        <p className="font-bold text-slate-700 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-lg inline-block">{selectedCandidate.yearsExp} Years</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">AI Score</p>
+                                        {selectedCandidate.aiScore ? (
+                                            <p className="font-black text-indigo-600 text-lg px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-lg inline-block">{selectedCandidate.aiScore}/100</p>
+                                        ) : (
+                                            <p className="font-black text-slate-400 text-sm px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-lg inline-block">N/A</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5">Update Status</p>
+                                    {onStatusChange ? (
+                                        <div className="pt-1">
+                                            <Select 
+                                                value={selectedCandidate.currentStatus}
+                                                onValueChange={(val) => onStatusChange(selectedCandidate.id!, val as CandidateStatus)}
+                                            >
+                                                <SelectTrigger className="h-10 text-xs w-full font-bold bg-slate-50 border-slate-200">
+                                                    <SelectValue placeholder="Update Status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {['New', 'Reviewing', 'Shortlisted', 'Hired', 'Rejected'].map(s => (
+                                                        <SelectItem key={s} value={s} className="font-medium">{s}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    ) : (
+                                        <Badge className="bg-slate-800">{selectedCandidate.currentStatus}</Badge>
                                     )}
                                 </div>
-                            </div>
-                            <div className="col-span-2">
-                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Professional Summary</p>
-                                <div className="p-4 bg-slate-50 rounded-lg text-sm text-slate-700 whitespace-pre-wrap">
-                                    {selectedCandidate.professionalSummary || selectedCandidate.rawText?.substring(0, 500) + '...'}
-                                </div>
+
+                                {(selectedCandidate.email || selectedCandidate.phone) && (
+                                    <div className="space-y-3 pt-2">
+                                        {selectedCandidate.email && (
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Email</p>
+                                                <p className="font-bold text-sm text-blue-600 truncate">{selectedCandidate.email}</p>
+                                            </div>
+                                        )}
+                                        {selectedCandidate.phone && (
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Phone</p>
+                                                <p className="font-bold text-sm text-slate-700">{selectedCandidate.phone}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                
+                                <hr className="border-slate-100 my-4" />
+
+                                {selectedCandidate.professionalSummary && (
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Summary</p>
+                                        <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">
+                                            {selectedCandidate.professionalSummary}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {selectedCandidate.keySkills && (
+                                    <div className="space-y-2 pt-2">
+                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Key Skills</p>
+                                        <p className="text-sm font-semibold text-slate-700 whitespace-pre-wrap">
+                                            {selectedCandidate.keySkills}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {(selectedCandidate.education || selectedCandidate.certifications) && (
+                                    <div className="space-y-5 pt-2">
+                                        {selectedCandidate.education && (
+                                            <div className="space-y-2">
+                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Education</p>
+                                                <p className="text-xs font-medium text-slate-600">{selectedCandidate.education}</p>
+                                            </div>
+                                        )}
+                                        {selectedCandidate.certifications && (
+                                            <div className="space-y-2">
+                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Certifications</p>
+                                                <p className="text-xs font-medium text-slate-600">{selectedCandidate.certifications}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

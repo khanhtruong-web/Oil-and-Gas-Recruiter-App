@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Candidate, CandidateStatus } from '../../types';
-import { Users, Trash2, Download, Eye, ArchiveRestore, HardDrive, Ban } from 'lucide-react';
+import { Users, Trash2, Download, Eye, ArchiveRestore, HardDrive, Ban, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,9 +30,10 @@ export const PersonnelDirectory = ({
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [viewTab, setViewTab] = useState<'active' | 'rejected' | 'trash'>('active');
     const [statusFilter, setStatusFilter] = useState<string>('All');
+    const [disciplineFilter, setDisciplineFilter] = useState<string>('All');
     const [dateFrom, setDateFrom] = useState<string>('');
     const [dateTo, setDateTo] = useState<string>('');
-    const { disciplineDetails } = useDisciplines();
+    const { disciplineDetails, disciplines: catalogDisciplines } = useDisciplines();
     
     const [confirmDialog, setConfirmDialog] = useState<{title: string, message: string, onConfirm: () => void} | null>(null);
     
@@ -52,6 +53,10 @@ export const PersonnelDirectory = ({
 
         if (viewTab === 'active' && statusFilter !== 'All') {
             if (cs !== statusFilter.toLowerCase()) return false;
+        }
+
+        if (disciplineFilter && disciplineFilter !== 'All') {
+            if (c.discipline !== disciplineFilter) return false;
         }
 
         if (dateFrom || dateTo) {
@@ -81,7 +86,7 @@ export const PersonnelDirectory = ({
     // Reset pagination when filters change
     React.useEffect(() => {
         setCurrentPage(1);
-    }, [viewTab, statusFilter, dateFrom, dateTo]);
+    }, [viewTab, statusFilter, disciplineFilter, dateFrom, dateTo]);
 
     const toggleSelectAll = () => {
         if (selectedIds.length === paginatedList.length) setSelectedIds([]);
@@ -128,11 +133,11 @@ export const PersonnelDirectory = ({
         <Card className="border-none shadow-sm animate-in fade-in duration-300">
             <CardHeader className="bg-slate-50 border-b border-slate-100 py-6 flex flex-row items-start justify-between">
                 <div>
-                    <CardTitle className="text-xl font-black flex items-center gap-2">
+                    <CardTitle className="text-2xl font-black flex items-center gap-2 text-slate-900">
                         <Users className="w-6 h-6 text-primary" />
                         Personnel Directory
                     </CardTitle>
-                    <CardDescription className="text-slate-500 font-semibold uppercase text-[9px] tracking-widest mt-1">Master list of all candidates with status tracking</CardDescription>
+                    <CardDescription className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mt-1">Master list of all candidates with status tracking</CardDescription>
                 </div>
                 <div className="flex items-center gap-3">
                     <Tabs value={viewTab} onValueChange={(val) => setViewTab(val as any)} className="w-auto">
@@ -165,23 +170,38 @@ export const PersonnelDirectory = ({
             <CardContent className="p-4 bg-slate-50">
                 <div className="flex flex-wrap items-end gap-3 mb-4">
                     {viewTab === 'active' && (
-                        <div className="flex flex-col gap-1 w-full sm:w-auto">
-                            <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">
-                                STATUS FILTER
-                            </label>
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-full sm:w-[150px] h-8 text-[11px] font-bold bg-white rounded-lg">
-                                    <SelectValue placeholder="All Statuses" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="All">All Active</SelectItem>
-                                    <SelectItem value="New">New</SelectItem>
-                                    <SelectItem value="Reviewing">Reviewing</SelectItem>
-                                    <SelectItem value="Shortlisted">Shortlisted</SelectItem>
-                                    <SelectItem value="Hired">Hired</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <>
+                            <div className="flex flex-col gap-1 w-full sm:w-auto">
+                                <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">
+                                    DISCIPLINE
+                                </label>
+                                <select 
+                                    className="h-8 px-2 text-[11px] font-bold text-slate-700 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 ring-primary/20 w-full sm:w-[150px] cursor-pointer"
+                                    value={disciplineFilter} 
+                                    onChange={(e) => setDisciplineFilter(e.target.value)}
+                                >
+                                    <option value="All">All Disciplines</option>
+                                    {catalogDisciplines.map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1 w-full sm:w-auto">
+                                <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">
+                                    STATUS FILTER
+                                </label>
+                                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                    <SelectTrigger className="w-full sm:w-[150px] h-8 text-[11px] font-bold bg-white rounded-lg border-slate-200">
+                                        <SelectValue placeholder="All Statuses" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="All">All Active</SelectItem>
+                                        <SelectItem value="New">New</SelectItem>
+                                        <SelectItem value="Reviewing">Reviewing</SelectItem>
+                                        <SelectItem value="Shortlisted">Shortlisted</SelectItem>
+                                        <SelectItem value="Hired">Hired</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </>
                     )}
                     <div className="flex flex-col gap-1 w-full sm:w-auto">
                         <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">
@@ -253,7 +273,7 @@ export const PersonnelDirectory = ({
                 )}
                 <div className="overflow-x-auto bg-white rounded-2xl border border-slate-200 shadow-sm">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-100 text-[11px] font-black uppercase tracking-widest text-slate-800 border-b-2 border-slate-200">
+                        <thead className="bg-slate-100 text-[11px] font-black uppercase tracking-widest text-slate-900 border-b-2 border-slate-200">
                             <tr>
                                 <th className="p-4 w-12 text-center">
                                     <Checkbox 
@@ -366,53 +386,118 @@ export const PersonnelDirectory = ({
                                                     <DialogTrigger className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-500 inline-flex items-center justify-center">
                                                         <Eye className="w-4 h-4" />
                                                     </DialogTrigger>
-                                                    <DialogContent className="max-w-md sm:max-w-2xl bg-white border-slate-200 p-0 overflow-hidden">
-                                                        <div className="bg-slate-50 border-b border-slate-100 p-6 flex items-center gap-4">
-                                                            <div className="w-16 h-16 rounded-2xl bg-primary text-white flex items-center justify-center text-2xl font-black shadow-lg shadow-primary/20">
-                                                                {getInitials(c.candidateName)}
+                                                    <DialogContent className="max-w-[96vw] sm:max-w-[96vw] md:max-w-[96vw] lg:max-w-[96vw] w-full h-[96vh] flex flex-col p-0 overflow-hidden bg-slate-50 border-none sm:rounded-2xl transition-all duration-300">
+                                                        {/* Header */}
+                                                        <div className="bg-white border-b border-slate-100 p-4 lg:p-6 flex items-center justify-between shrink-0">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg lg:text-xl font-black shadow-lg shadow-indigo-600/20">
+                                                                    {getInitials(c.candidateName)}
+                                                                </div>
+                                                                <div>
+                                                                    <DialogTitle className="text-xl lg:text-2xl font-black text-slate-900">{c.candidateName}</DialogTitle>
+                                                                    <div className="mt-1.5 flex flex-wrap items-center gap-2 lg:gap-3">
+                                                                        <Badge variant="outline" className="bg-indigo-50 text-indigo-800 border-indigo-200 font-bold uppercase tracking-wider text-[10px] lg:text-[11px] px-2.5 py-0.5">
+                                                                            {c.discipline}
+                                                                        </Badge>
+                                                                        <div className="text-xs lg:text-sm font-medium text-slate-500 flex items-center gap-1">
+                                                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                                            {c.currentStatus}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                <DialogTitle className="text-2xl font-black text-slate-800">{c.candidateName}</DialogTitle>
-                                                                <div className="text-sm font-semibold text-slate-500 mt-1 uppercase tracking-wider">{c.discipline}</div>
+                                                            <div className="flex items-center gap-3">
+                                                                {(c.driveFileUrl || c.fileUrl) && (
+                                                                    <Button size="sm" onClick={() => window.open(c.driveFileUrl || c.fileUrl, '_blank')} className="gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-sm font-bold h-9">
+                                                                        <ExternalLink className="w-4 h-4" />
+                                                                        <span className="hidden sm:inline">Open Original CV</span>
+                                                                    </Button>
+                                                                )}
                                                             </div>
                                                         </div>
-                                                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-white">
-                                                            <div className="space-y-4">
-                                                                <div>
-                                                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Experience</div>
-                                                                    <div className="text-slate-800 font-medium">{c.yearsExp} Years</div>
-                                                                </div>
-                                                                <div>
-                                                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Specialization</div>
-                                                                    <div className="text-slate-800">{c.specializedField || 'N/A'}</div>
-                                                                </div>
-                                                                <div>
-                                                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Work Fields</div>
-                                                                    <div className="text-slate-800">{c.workFields || 'N/A'}</div>
-                                                                </div>
+
+                                                        {/* Split View */}
+                                                        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-100/50">
+                                                            {/* Left: Document Preview */}
+                                                            <div className="hidden lg:flex w-[65%] border-r border-slate-200 bg-slate-200 p-2 lg:p-4">
+                                                                {(c.driveFileUrl || c.fileUrl) ? (
+                                                                    <iframe 
+                                                                        src={(c.driveFileUrl || c.fileUrl || '').replace(/\/view.*$/, '/preview')}
+                                                                        className="w-full h-full rounded-xl shadow-sm bg-white"
+                                                                        title="CV Preview"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-slate-100 rounded-xl shadow-inner">
+                                                                        <Eye className="w-12 h-12 mb-3 text-slate-300" />
+                                                                        <p className="font-medium">No document available for preview</p>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                            <div className="space-y-4">
-                                                                <div>
-                                                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Status</div>
-                                                                    <Badge variant="outline" className={`
-                                                                        px-3 py-1 text-xs uppercase
-                                                                        ${c.currentStatus === 'Hired' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : ''}
-                                                                        ${c.currentStatus === 'Shortlisted' ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : ''}
-                                                                        ${c.currentStatus === 'Rejected' ? 'bg-red-50 text-red-600 border-red-200' : ''}
-                                                                        ${c.currentStatus?.toLowerCase() === 'deleted' ? 'bg-orange-50 text-orange-600 border-orange-200' : ''}
-                                                                        ${c.currentStatus === 'New' || c.currentStatus === 'Reviewing' ? 'bg-slate-50 text-slate-600 border-slate-200' : ''}
-                                                                    `}>
-                                                                        {c.currentStatus}
-                                                                    </Badge>
+                                                            
+                                                            {/* Right: Condensed Info */}
+                                                            <div className="w-full lg:w-[35%] overflow-y-auto p-4 lg:p-6 space-y-5 bg-white">
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <div className="space-y-1">
+                                                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Experience</p>
+                                                                        <p className="font-bold text-slate-700 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-lg inline-block">{c.yearsExp} Years</p>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">AI Score</p>
+                                                                        <p className="font-black text-indigo-600 text-lg px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-lg inline-block">{c.aiScore}/100</p>
+                                                                    </div>
                                                                 </div>
-                                                                <div>
-                                                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">AI Score</div>
-                                                                    <div className="text-slate-800 font-black text-xl text-primary">{c.aiScore}/100</div>
-                                                                </div>
-                                                                {c.driveFileUrl && (
-                                                                    <div>
-                                                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Google Drive</div>
-                                                                        <a href={c.driveFileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm font-medium">View Original CV</a>
+
+                                                                {(c.email || c.phone) && (
+                                                                    <div className="space-y-3 pt-2">
+                                                                        {c.email && (
+                                                                            <div className="space-y-1">
+                                                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Email</p>
+                                                                                <p className="font-bold text-sm text-blue-600 truncate">{c.email}</p>
+                                                                            </div>
+                                                                        )}
+                                                                        {c.phone && (
+                                                                            <div className="space-y-1">
+                                                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Phone</p>
+                                                                                <p className="font-bold text-sm text-slate-700">{c.phone}</p>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                
+                                                                <hr className="border-slate-100 my-4" />
+
+                                                                {c.professionalSummary && (
+                                                                    <div className="space-y-2">
+                                                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Summary</p>
+                                                                        <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">
+                                                                            {c.professionalSummary}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+
+                                                                {c.keySkills && (
+                                                                    <div className="space-y-2 pt-2">
+                                                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Key Skills</p>
+                                                                        <p className="text-sm font-semibold text-slate-700 whitespace-pre-wrap">
+                                                                            {c.keySkills}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+
+                                                                {(c.education || c.certifications) && (
+                                                                    <div className="space-y-5 pt-2">
+                                                                        {c.education && (
+                                                                            <div className="space-y-2">
+                                                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Education</p>
+                                                                                <p className="text-xs font-medium text-slate-600">{c.education}</p>
+                                                                            </div>
+                                                                        )}
+                                                                        {c.certifications && (
+                                                                            <div className="space-y-2">
+                                                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Certifications</p>
+                                                                                <p className="text-xs font-medium text-slate-600">{c.certifications}</p>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </div>

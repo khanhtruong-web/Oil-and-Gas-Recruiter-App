@@ -197,7 +197,7 @@ export const Dashboard = ({ candidates, activities }: { candidates: Candidate[],
               <div className="flex flex-col gap-1.5">
                   <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest px-1">Discipline</span>
                   <select 
-                      className="h-10 border-none shadow-sm rounded-xl px-3 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none min-w-[180px] appearance-none cursor-pointer"
+                      className="h-10 border-none shadow-sm rounded-xl px-3 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none min-w-[180px] cursor-pointer"
                       value={filterDisc} 
                       onChange={(e) => setFilterDisc(e.target.value)}
                   >

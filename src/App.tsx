@@ -229,17 +229,16 @@ const ExpertCatalog = ({ candidates, onUpdateStatus, onDelete }: {
         </div>
         <div className="w-full md:w-[250px] space-y-1.5">
           <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Primary Discipline</label>
-          <Select value={disciplineFilter} onValueChange={setDisciplineFilter}>
-            <SelectTrigger className="bg-slate-50 border-none focus-visible:ring-primary/20 h-10 font-bold">
-              <SelectValue placeholder="All Disciplines" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Disciplines</SelectItem>
-              {DISCIPLINE_CATALOG.map(d => (
-                <SelectItem key={d} value={d}>{d}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <select 
+            className="w-full h-10 px-3 py-2 bg-slate-50 border-none rounded-md text-sm font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+            value={disciplineFilter} 
+            onChange={(e) => setDisciplineFilter(e.target.value)}
+          >
+            <option value="All">All Disciplines</option>
+            {DISCIPLINE_CATALOG.map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -1854,10 +1853,10 @@ const MainContent = () => {
         <div className="w-full max-w-[2560px] mx-auto space-y-8 flex flex-col flex-1 min-h-0">
             <header className="flex justify-between items-center shrink-0">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-800 tracking-tight">
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">
                         {menuSections.flatMap(s => s.items).find(i => i.id === activeTab)?.label}
                     </h1>
-                    <p className="text-sm font-medium text-slate-400 mt-1 uppercase tracking-widest">
+                    <p className="text-sm font-bold text-slate-500 mt-1 uppercase tracking-widest">
                         Oil & Gas Recruitment Intelligence
                     </p>
                 </div>
