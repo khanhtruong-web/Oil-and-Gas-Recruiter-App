@@ -128,7 +128,9 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
                 const res = await geminiService.analyzeCV(
                     cv?.rawText || "", 
                     activeTool, 
-                    jobDescription
+                    jobDescription,
+                    undefined,
+                    cv?.discipline
                 );
                 setResult(res);
             }
@@ -140,7 +142,7 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
     };
 
     const tools = [
-        { id: 'spellcheck', label: 'Spellcheck', desc: 'AI-powered English grammar & spelling review', icon: CheckCircle2, bg: 'from-blue-500 to-blue-600' },
+        { id: 'spellcheck', label: 'Advanced Phrasing & Spellcheck', desc: 'Deep discipline-based grammar, vocabulary & tone analysis', icon: CheckCircle2, bg: 'from-blue-500 to-blue-600' },
         { id: 'review', label: 'AI Review', desc: 'Strengths, weaknesses, certs & JD matching', icon: Award, bg: 'from-indigo-500 to-indigo-600' },
         { id: 'suggest', label: 'Improvement Tips', desc: 'Feedback to enhance CV clarity & keywords', icon: Sparkles, bg: 'from-purple-500 to-purple-600' },
         { id: 'match', label: 'Candidate Matcher', desc: 'Find best CVs for a Job Description', icon: TrendingUp, bg: 'from-emerald-500 to-emerald-600' },

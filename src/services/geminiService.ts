@@ -178,7 +178,7 @@ CV TEXT:\n\n${text.substring(0, 30000)}`
     }
   }
 
-  async analyzeCV(text: string, mode: 'spellcheck' | 'review' | 'suggest' | 'match', jobDescription?: string, allCandidates?: Candidate[]): Promise<string> {
+  async analyzeCV(text: string, mode: 'spellcheck' | 'review' | 'suggest' | 'match', jobDescription?: string, allCandidates?: Candidate[], candidateDiscipline?: string): Promise<string> {
     if (!this.ai) await this.initClient();
     if (!this.ai) throw new Error("API Key logic failed: Gemini API key is required.");
     
@@ -203,16 +203,20 @@ CANDIDATES DATA (summarized):
     } else {
       // (rest of the logic remains same for single analyze)
       if (mode === 'spellcheck') {
-        prompt = `You are an expert Native English Technical Writer and Senior HR Consultant specializing in the Oil & Gas, Offshore, Subsea, and Welding engineering sectors.
-Your specific task is to conduct a meticulous line-by-line, word-for-word spellcheck and grammar review of the ENTIRE provided CV.
+        prompt = `You are an expert Native English Technical Writer and Senior HR Consultant specializing in the Oil & Gas, Offshore, Subsea, and Engineering sectors.
+Your specific task is to conduct a meticulous phrasing, grammar, and typography analysis of the provided CV. The candidate's discipline is: "${candidateDiscipline || 'General Engineering'}".
 
 CRITICAL RULES AND CONSTRAINTS - YOU MUST OBEY THESE:
-1. NO OMISSIONS ALLOWED: You MUST proofread, correct, and return EVERY SINGLE SENTENCE, paragraph, bullet point, date, and detail from the original text. Do not summarize. Do not skip any work experience, project, education, or skill. If a section is already perfect, return it exactly as is.
-2. MAINTAIN EXACT STRUCTURE AND NEWLINES: Keep the exact structural layout, sections, lists, tables structure, dates, and bullet points of the original CV. VERY IMPORTANT: You MUST preserve every single line break (\\n) from the original text. DO NOT merge separate lines or fields together. If "Project:" is on one line and "Client:" is on the next, they MUST remain on separate lines. DO NOT combine paragraphs into a single block.
-3. GRAMMAR AND SPELLING: Correct all spelling mistakes, grammatical errors, typos, awkward phrasing, and non-native sentence structures. Rewrite awkward sentences to read smoothly like a polished, native English professional.
-4. PRESERVE TECHNICAL TERMS: Strictly preserve all Oil & Gas and technical engineering terminology (e.g., NDT, QA/QC, ASME, ISO, Subsea, Piping, Structural, Dimensional Control). Do not change technical acronyms, certifications, or industry-standard terms.
-5. NO HALLUCINATION: Enhance the impact of action verbs without altering factual meaning, numbers, or adding hallucinated data.
-6. PURE OUTPUT: Output the FULL, 100% corrected CV text in beautifully formatted Markdown. DO NOT add any conversational AI filler text before or after the CV. Just return the corrected CV text from start to finish.`;
+1. DEEP PHRASING ANALYSIS: Do not just correct spelling. Analyze the grammar and sentence structures deeply to ensure they meet the highest professional standard for a "${candidateDiscipline || 'General Engineering'}" role. Ensure industry-standard phrasing is used (e.g., using "executed" instead of "did", "implemented QA/QC protocols" instead of "checked quality").
+2. STRUCTURE OF RESPONSE: Your output MUST be beautifully formatted Markdown with the following sections:
+   - **Executive Grammar & Tone Summary**: A brief (2-3 sentences) evaluation of the original writing quality and professional tone.
+   - **Critical Corrections & Enhancements**: A bulleted list of 5-10 significant grammatical fixes or phrasing enhancements. Format each as: 
+     * *Original*: "..." 
+     * *Corrected*: "..." 
+     * *Rationale*: Why this was changed (e.g., "Active voice", "Industry-standard terminology for ${candidateDiscipline || 'this role'}").
+   - **Terminology Alignment**: Suggestions for better industry-specific action verbs or keywords that fit their discipline.
+   - **The Fully Polished CV**: Provide the FULL, 100% corrected and professionally rewritten CV text from start to finish. Preserve the exact structural layout, sections, lists, and tables of the original CV. VERY IMPORTANT: You MUST preserve every single line break (\\n) and maintain bullet points. Do NOT summarize or skip any details from the original CV.
+3. NO HALLUCINATION: Enhance the impact of action verbs without altering factual meaning, numbers, or adding hallucinated data.`;
       } else if (mode === 'review') {
         if (jobDescription) {
           prompt = `Review this CV deeply against the following Job Description. 
