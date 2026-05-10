@@ -567,9 +567,9 @@ const ImportExpert = ({ onExpertAdded }: { onExpertAdded: (c: Partial<Candidate>
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto animate-in fade-in slide-in-from-right-4 duration-500">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+    <div className="space-y-6 w-full max-w-[2560px] mx-auto animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+        <div className="lg:col-span-2 xl:col-span-3 2xl:col-span-4 space-y-6">
           <Card className="border-none shadow-md overflow-hidden bg-white">
             <CardHeader className="bg-slate-50 border-b border-slate-100 py-6">
               <CardTitle className="text-xl font-black flex items-center gap-2">
@@ -1608,10 +1608,10 @@ const MainContent = () => {
   const renderView = () => {
     const isSplit = !!secondaryTab;
     return (
-      <div className={`h-full relative flex w-full ${isSplit ? 'gap-0 divide-x-4 divide-slate-200/50' : ''}`}>
+      <div className={`flex-1 min-h-0 relative flex w-full ${isSplit ? 'gap-0 divide-x-4 divide-slate-200/50' : ''}`}>
         
         {/* Main View */}
-        <div className={`flex-1 min-w-0 h-full relative ${activeTab ? 'block' : 'hidden'}`}>
+        <div className={`flex-1 min-w-0 h-full relative overflow-y-auto overflow-x-hidden ${activeTab ? 'block' : 'hidden'}`}>
           <div className={activeTab === 'dashboard' ? 'block h-full' : 'hidden'}><Dashboard candidates={activeCandidates} activities={activities} /></div>
           <div className={activeTab === 'folders' ? 'block h-full' : 'hidden'}><FolderManagement candidates={activeCandidates} /></div>
           <div className={activeTab === 'extract' ? 'block h-full' : 'hidden'}><CVExtraction candidates={activeCandidates} onExpertAdded={addCandidate} /></div>
@@ -1625,7 +1625,7 @@ const MainContent = () => {
 
         {/* Secondary View (Split) */}
         {isSplit && (
-          <div className="flex-1 min-w-0 h-full relative bg-slate-50/50">
+          <div className="flex-1 min-w-0 h-full relative overflow-y-auto overflow-x-hidden bg-slate-50/50">
             <div className="absolute top-4 right-4 z-50">
                 <Button variant="outline" size="sm" className="bg-white/80 hover:bg-white shadow-sm h-8 px-2 gap-1 text-slate-500 rounded-lg" onClick={() => setSecondaryTab(null)}>
                   <X className="w-4 h-4"/>
@@ -1833,7 +1833,7 @@ const MainContent = () => {
       </aside>
 
       {/* Main Area */}
-      <main className="flex-1 overflow-y-auto p-1/2 md:p-8">
+      <main className="flex-1 h-screen overflow-hidden p-4 md:p-8 flex flex-col">
         {/* Fullscreen Toggle Button */}
         <div className="fixed top-4 right-4 z-[100]">
             <Button
@@ -1851,8 +1851,8 @@ const MainContent = () => {
             </Button>
         </div>
 
-        <div className="max-w-[1400px] mx-auto space-y-8">
-            <header className="flex justify-between items-center">
+        <div className="w-full max-w-[2560px] mx-auto space-y-8 flex flex-col flex-1 min-h-0">
+            <header className="flex justify-between items-center shrink-0">
                 <div>
                     <h1 className="text-3xl font-black text-slate-800 tracking-tight">
                         {menuSections.flatMap(s => s.items).find(i => i.id === activeTab)?.label}
@@ -1864,7 +1864,7 @@ const MainContent = () => {
                 <SessionTracker />
             </header>
 
-            <div className="pb-20">
+            <div className="pb-6 flex-1 min-h-0 flex flex-col">
                 {renderView()}
             </div>
         </div>
