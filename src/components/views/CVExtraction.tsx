@@ -519,7 +519,7 @@ export const CVExtraction = ({ candidates, onExpertAdded }: { candidates: Candid
                 <DialogContent className="max-w-[96vw] sm:max-w-[96vw] md:max-w-[96vw] lg:max-w-[96vw] w-full h-[96vh] flex flex-col p-0 overflow-hidden bg-slate-50 shadow-2xl border-none sm:rounded-2xl transition-all duration-300">
                     {/* Fixed Header */}
                     <DialogHeader className="px-6 py-4 bg-white border-b border-slate-200 shrink-0">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-start gap-6 lg:gap-8 pr-16">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                                     <Bot className="w-6 h-6 text-primary" />
@@ -531,7 +531,7 @@ export const CVExtraction = ({ candidates, onExpertAdded }: { candidates: Candid
                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest truncate max-w-[500px]">{reviewingCv?.fileName}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3 pr-4">
+                            <div className="flex items-center gap-3">
                                 <div className="hidden lg:flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl border border-blue-100">
                                     <FileText className="w-4 h-4" />
                                     <span className="text-xs font-black uppercase tracking-tight">{reviewingCv?.fileType || 'Document'}</span>

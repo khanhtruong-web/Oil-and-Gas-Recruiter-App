@@ -175,7 +175,7 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
 
             <Dialog open={!!selectedCandidate} onOpenChange={() => setSelectedCandidate(null)}>
                 <DialogContent className="max-w-[96vw] sm:max-w-[96vw] md:max-w-[96vw] lg:max-w-[96vw] w-full h-[96vh] flex flex-col p-0 overflow-hidden bg-slate-50 border-none sm:rounded-2xl transition-all duration-300">
-                    <div className="bg-white border-b border-slate-100 p-4 lg:p-6 flex items-center justify-between shrink-0">
+                    <div className="bg-white border-b border-slate-100 p-4 lg:p-6 flex items-center justify-start pr-16 shrink-0">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 lg:w-16 lg:h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg lg:text-xl font-black shadow-lg shadow-indigo-600/20">
                                 {selectedCandidate?.candidateName?.charAt(0)?.toUpperCase()}
@@ -186,20 +186,18 @@ export const SmartSearch = ({ candidates, onStatusChange, onDelete }: SmartSearc
                                     <Badge variant="outline" className="bg-indigo-50 text-indigo-800 border-indigo-200 font-bold uppercase tracking-wider text-[10px] lg:text-[11px] px-2.5 py-0.5">
                                         {selectedCandidate?.discipline}
                                     </Badge>
-                                    <div className="text-xs lg:text-sm font-medium text-slate-500 flex items-center gap-1">
+                                    <div className="text-xs lg:text-sm font-medium text-slate-500 flex items-center gap-1 border-r border-slate-200 pr-3">
                                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                                         {selectedCandidate?.currentStatus}
                                     </div>
+                                    {(selectedCandidate?.driveFileUrl || selectedCandidate?.fileUrl) && (
+                                        <Button size="sm" onClick={() => window.open(selectedCandidate.driveFileUrl || selectedCandidate.fileUrl, '_blank')} className="gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-sm font-bold h-7 ml-1">
+                                            <ExternalLink className="w-4 h-4" />
+                                            <span className="hidden sm:inline text-xs">Open Original CV</span>
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            {(selectedCandidate?.driveFileUrl || selectedCandidate?.fileUrl) && (
-                                <Button size="sm" onClick={() => window.open(selectedCandidate.driveFileUrl || selectedCandidate.fileUrl, '_blank')} className="gap-2 bg-indigo-600 hover:bg-indigo-700 shadow-sm font-bold h-9">
-                                    <ExternalLink className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Open Original CV</span>
-                                </Button>
-                            )}
                         </div>
                     </div>
                     {selectedCandidate && (
