@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Candidate } from "../types";
 import { collection, query, where, getDocs, limit, serverTimestamp, getDoc, doc } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 
 /**
  * Singleton service for Gemini AI operations
@@ -23,17 +23,28 @@ class GeminiService {
   }
 
   public async initClient(providedKey?: string) {
-    let key = providedKey || process.env.GEMINI_API_KEY;
-    if (!key && !this.ai) {
+    let key = providedKey;
+    if (!key) {
         try {
-            const sysDoc = await getDoc(doc(db, 'settings', 'system_config'));
-            if (sysDoc.exists() && sysDoc.data().geminiApiKey) {
-                key = sysDoc.data().geminiApiKey;
+            if (auth.currentUser?.uid) {
+                const userDoc = await getDoc(doc(db, 'settings', auth.currentUser.uid));
+                if (userDoc.exists() && userDoc.data().geminiApiKey) {
+                    key = userDoc.data().geminiApiKey;
+                }
+            }
+            if (!key) {
+                const sysDoc = await getDoc(doc(db, 'settings', 'system_config'));
+                if (sysDoc.exists() && sysDoc.data().geminiApiKey) {
+                    key = sysDoc.data().geminiApiKey;
+                }
             }
         } catch(e) {
             console.warn("Could not fetch gemini fallback key", e);
         }
     }
+    
+    key = key || process.env.GEMINI_API_KEY;
+    
     if (key) {
       this.ai = new GoogleGenAI({ apiKey: key });
     }
@@ -125,8 +136,8 @@ CV TEXT:\n\n${text.substring(0, 30000)}`,
         if (err?.status === 429 || err?.message?.includes("Quota exceeded") || err?.message?.includes("429") || err?.message?.includes("Too Many Requests")) {
           attempts++;
           if (attempts >= 3) throw err;
-          console.warn(`Gemini API rate limit hit. Retrying in ${attempts * 4}s...`);
-          await new Promise(r => setTimeout(r, 4000 * attempts));
+          console.warn(`Gemini API rate limit hit. Retrying in ${attempts * 8}s...`);
+          await new Promise(r => setTimeout(r, 8000 * attempts));
         } else {
           throw err;
         }

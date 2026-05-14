@@ -367,11 +367,11 @@ export const Settings = () => {
                                     onClick={async () => {
                                         const val = (document.getElementById('custom_gemini_key_input') as HTMLInputElement).value;
                                         try {
-                                            await setDoc(doc(db, 'settings', 'system_config'), { geminiApiKey: val }, { merge: true });
-                                            toast.success('AI Configuration updated globally');
+                                            await setDoc(doc(db, 'settings', user?.uid || 'anonymous'), { geminiApiKey: val }, { merge: true });
+                                            toast.success('AI configurations updated successfully');
                                             setTimeout(() => window.location.reload(), 500);
                                         } catch (err) {
-                                            handleFirestoreError(err, OperationType.WRITE, 'settings/system_config');
+                                            handleFirestoreError(err, OperationType.WRITE, `settings/${user?.uid || 'anonymous'}`);
                                         }
                                     }}
                                 >

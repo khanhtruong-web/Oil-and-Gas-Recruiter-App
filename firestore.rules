@@ -53,7 +53,7 @@ service cloud.firestore {
     }
 
     function isValidSetting(data) {
-      return data.keys().hasAny(['userId', 'role', 'updatedAt', 'driveRootFolderId', 'googleSheetId', 'driveSourceFolderId', 'googleClientId', 'autoBackupEnabled', 'autoSyncFolders']);
+      return data.keys().hasAny(['userId', 'role', 'updatedAt', 'driveRootFolderId', 'googleSheetId', 'driveSourceFolderId', 'googleClientId', 'autoBackupEnabled', 'autoSyncFolders', 'geminiApiKey']);
     }
 
     function isValidTemplate(data) {
