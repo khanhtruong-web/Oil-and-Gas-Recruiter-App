@@ -178,7 +178,11 @@ export const CVExtraction = ({ candidates, onExpertAdded }: { candidates: Candid
                     }
                 } catch(e) {}
                 
-                toast.error(`Failed to process ${staged.file.name}: ${errorMsg}`);
+                if (errorMsg.includes("Quota exceeded") || errorMsg.includes("429") || errorMsg.includes("Too Many Requests")) {
+                    errorMsg = "API Rate Limit Exceeded. If you are extracting many CVs, please configure your own Gemini API Key in 'Settings' to increase your quota.";
+                }
+                
+                toast.error(`Failed to process ${staged.file.name}: ${errorMsg}`, { duration: 8000 });
                 setStagedFiles(prev => prev.map(f => f.id === staged.id ? { ...f, parsing: false, error: errorMsg } : f));
             }
             

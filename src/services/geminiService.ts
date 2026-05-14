@@ -82,7 +82,7 @@ class GeminiService {
     }
 
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await this.generateContentWithRetry({
         model: this.modelName,
         contents: `Act as a professional recruiter. Extract structured data from this CV text.
 The CV may be in English, Vietnamese, or a mix of both. 
@@ -100,6 +100,7 @@ CV TEXT:\n\n${text.substring(0, 30000)}`,
         }
       });
 
+      if (!response) throw new Error("Failed to generate content after retries.");
       const parsedData = JSON.parse(response.text || "{}");
       
       return {
@@ -112,6 +113,24 @@ CV TEXT:\n\n${text.substring(0, 30000)}`,
     } catch (error) {
       console.error("Gemini Parse Error:", error);
       throw error;
+    }
+  }
+
+  private async generateContentWithRetry(options: any): Promise<any> {
+    let attempts = 0;
+    while (attempts < 3) {
+      try {
+        return await this.ai.models.generateContent(options);
+      } catch (err: any) {
+        if (err?.status === 429 || err?.message?.includes("Quota exceeded") || err?.message?.includes("429") || err?.message?.includes("Too Many Requests")) {
+          attempts++;
+          if (attempts >= 3) throw err;
+          console.warn(`Gemini API rate limit hit. Retrying in ${attempts * 4}s...`);
+          await new Promise(r => setTimeout(r, 4000 * attempts));
+        } else {
+          throw err;
+        }
+      }
     }
   }
 
@@ -128,7 +147,7 @@ CV TEXT:\n\n${text.substring(0, 30000)}`,
     });
 
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await this.generateContentWithRetry({
         model: this.modelName,
         contents: `Extract detailed information from the CV text to fill these specific template variables: ${vars.join(', ')}. 
 The CV may be in English or Vietnamese. Please ensure the extracted values are clear and professional. 
@@ -159,7 +178,7 @@ ${rawText.substring(0, 30000)}`,
     if (!this.ai) throw new Error("API Key logic failed: Gemini API key is required.");
     
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await this.generateContentWithRetry({
         model: this.modelName,
         contents: `Carefully extract and beautifully format the ENTIRE Employment Records, Projects Track Record, and Detailed Tasks section from the CV text below. 
 You must act like a professional CV writer. Format the output as a clean, highly readable text document. 
@@ -243,7 +262,7 @@ ${jobDescription.substring(0, 10000)}
     }
 
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await this.generateContentWithRetry({
         model: this.modelName,
         contents: contents
       });
@@ -296,7 +315,7 @@ ${candidates.map(c => `ID: ${c.id}, Name: ${c.candidateName}, Disc: ${c.discipli
 `;
 
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await this.generateContentWithRetry({
         model: this.modelName,
         contents: prompt,
         config: {
@@ -341,7 +360,7 @@ ${candidates.map(c => `ID: ${c.id}, Name: ${c.candidateName}, Disc: ${c.discipli
     ];
 
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await this.generateContentWithRetry({
         model: this.modelName,
         contents: [
           ...history.map(h => ({ role: h.role === 'user' ? 'user' : 'model', parts: [{ text: h.content }] })),
@@ -366,7 +385,7 @@ ${candidates.map(c => `ID: ${c.id}, Name: ${c.candidateName}, Disc: ${c.discipli
         if (onChunk) onChunk("Searching database...");
         const toolResult = await this.executeTool(fc.name, fc.args);
         
-        const finalResponse = await this.ai.models.generateContent({
+        const finalResponse = await this.generateContentWithRetry({
           model: this.modelName,
           contents: [
             ...history.map(h => ({ role: h.role === 'user' ? 'user' : 'model', parts: [{ text: h.content }] })),
