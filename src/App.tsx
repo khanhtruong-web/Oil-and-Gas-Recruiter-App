@@ -1225,9 +1225,17 @@ const MainContent = () => {
                 try {
                     let uploadNeeded = !driveFileId;
                     
+                    const ext = (c.fileName || 'CV.pdf').split('.').pop() || 'pdf';
+                    const dt = new Date();
+                    const dateStr = `${String(dt.getDate()).padStart(2, '0')}${String(dt.getMonth() + 1).padStart(2, '0')}${dt.getFullYear()}`;
+                    const baseName = `${c.candidateName || 'UNKNOWN'}_${c.discipline || 'UNCATEGORIZED'}_${dateStr}`.toUpperCase().replace(/\s+/g, ' ').replace(/_+/g, '_').trim();
+                    const newFileName = `${baseName}.${ext}`;
+                    const oldFileName = c.fileName;
+                    c.fileName = newFileName;
+                    
                     if (uploadNeeded && c.fileUrl && c.fileUrl.startsWith('blob:')) {
                         toast.loading('Saving CV to Drive Discipline Folder...', { id: 'drive-sync' });
-                        const { findOrCreateFolder } = await import('./services/driveService');
+                        const { findOrCreateFolder, uploadFileToDrive } = await import('./services/driveService');
                         const safeFolderName = getSafeDisciplineFolderName(c.discipline || 'Uncategorized');
                         const targetFolderId = await findOrCreateFolder(safeFolderName, currentRootId);
                         
@@ -1235,9 +1243,9 @@ const MainContent = () => {
                         const blobRes = await fetch(c.fileUrl, { redirect: "follow" });
                         if (!blobRes.ok) throw new Error("Failed to fetch local blob");
                         const blob = await blobRes.blob();
-                        const fileOb = new File([blob], c.fileName || 'CV Document', { type: c.fileType || 'application/pdf' });
-                        const { uploadFileToDrive } = await import('./services/driveService');
-                        const newDriveId = await uploadFileToDrive(fileOb, targetFolderId, c.fileName);
+                        
+                        const fileOb = new File([blob], newFileName, { type: c.fileType || 'application/pdf' });
+                        const newDriveId = await uploadFileToDrive(fileOb, targetFolderId, newFileName);
                         
                         if (newDriveId) {
                             finalDriveId = newDriveId;
@@ -1245,6 +1253,16 @@ const MainContent = () => {
                             toast.success(`CV stored in /${safeFolderName}`, { id: 'drive-sync' });
                         } else {
                             toast.error('Drive upload failed - No file ID generated', { id: 'drive-sync' });
+                        }
+                    } else if (driveFileId && driveToken && oldFileName !== newFileName) {
+                        toast.loading('Renaming CV in Drive...', { id: 'drive-rename' });
+                        const { renameFile } = await import('./services/driveService');
+                        try {
+                            await renameFile(driveFileId, newFileName);
+                            toast.success('CV file renamed in Drive', { id: 'drive-rename' });
+                        } catch (err: any) {
+                            console.error("Rename failed", err);
+                            toast.dismiss('drive-rename');
                         }
                     }
                 } catch (e: any) {
