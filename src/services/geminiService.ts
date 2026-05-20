@@ -9,7 +9,7 @@ import { db, auth } from "../lib/firebase";
 class GeminiService {
   private static instance: GeminiService;
   private ai: any;
-  private modelName = "gemini-3-flash-preview"; // Recommended model from SKILL.md
+  private modelName = "gemini-3.5-flash"; // Highly stable and recommended model from SKILL.md
 
   private constructor() {
     this.initClient();
@@ -129,15 +129,20 @@ CV TEXT:\n\n${text.substring(0, 30000)}`,
 
   private async generateContentWithRetry(options: any): Promise<any> {
     let attempts = 0;
-    while (attempts < 3) {
+    while (attempts < 4) {
       try {
         return await this.ai.models.generateContent(options);
       } catch (err: any) {
-        if (err?.status === 429 || err?.message?.includes("Quota exceeded") || err?.message?.includes("429") || err?.message?.includes("Too Many Requests")) {
+        const errMsg = err?.message || "";
+        const isRateLimit = err?.status === 429 || errMsg.includes("Quota exceeded") || errMsg.includes("429") || errMsg.includes("Too Many Requests");
+        const isTransient = err?.status === 503 || err?.status === 500 || errMsg.includes("high demand") || errMsg.includes("temporary") || errMsg.includes("overloaded") || errMsg.includes("Service Unavailable") || errMsg.includes("internal error");
+        
+        if (isRateLimit || isTransient) {
           attempts++;
-          if (attempts >= 3) throw err;
-          console.warn(`Gemini API rate limit hit. Retrying in ${attempts * 8}s...`);
-          await new Promise(r => setTimeout(r, 8000 * attempts));
+          if (attempts >= 4) throw err;
+          const waitTime = isRateLimit ? attempts * 8000 : attempts * 4000;
+          console.warn(`Gemini API busy or rate limited (${err?.status || 'unknown'}: ${errMsg}). Retrying attempt ${attempts} in ${waitTime / 1000}s...`);
+          await new Promise(r => setTimeout(r, waitTime));
         } else {
           throw err;
         }

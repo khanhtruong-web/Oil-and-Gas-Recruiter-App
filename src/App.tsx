@@ -1266,8 +1266,16 @@ const MainContent = () => {
                         }
                     }
                 } catch (e: any) {
-                    console.error("Temp Drive upload failed", e);
-                    toast.error('Drive integration error: ' + (e.message || 'Unknown error'), { id: 'drive-sync' });
+                    if (e.message?.includes('AUTH_REQUIRED')) {
+                        console.warn("Google Drive upload deferred because authentication is required:", e.message);
+                        toast.warning('Google connection required. Saved locally, will sync when you connect Google services in Settings.', { id: 'drive-sync', duration: 8000 });
+                        if (typeof window !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('auth-required'));
+                        }
+                    } else {
+                        console.error("Temp Drive upload failed", e);
+                        toast.error('Drive integration error: ' + (e.message || 'Unknown error'), { id: 'drive-sync' });
+                    }
                 }
             } else if (driveToken && !currentRootId) {
                 toast.warning('Google Drive root folder not configured in Settings.');
