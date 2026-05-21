@@ -68,6 +68,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { OperationType, handleFirestoreError } from './lib/firestore-error';
 import { getSafeDisciplineFolderName, getApprovedFileName } from './lib/drive-utils';
+import { formatCandidateName } from './lib/utils';
 
 // --- COMPONENTS ---
 
@@ -1193,6 +1194,9 @@ const MainContent = () => {
     const addCandidate = async (c: Partial<Candidate>, driveFileId?: string) => {
         try {
             console.log("AddCandidate start:", { c, driveFileId });
+            if (c.candidateName) {
+                c.candidateName = formatCandidateName(c.candidateName);
+            }
             let finalDriveUrl = c.driveFileUrl;
             let finalDriveId = driveFileId;
             
@@ -1285,8 +1289,15 @@ const MainContent = () => {
             const sanitizeObject = (obj: any) => {
                 const newObj: any = {};
                 Object.keys(obj).forEach(key => {
+                    // Prevent storing massive fields like rawHtml or fileBase64 to respect Firestore's 1MB limit
+                    if (key === 'rawHtml' || key === 'fileBase64') return;
+                    
                     if (obj[key] !== undefined && obj[key] !== null) {
-                        newObj[key] = obj[key];
+                        if (key === 'rawText' && typeof obj[key] === 'string') {
+                            newObj[key] = obj[key].substring(0, 50000); // Truncate rawText to 50k chars of safe text
+                        } else {
+                            newObj[key] = obj[key];
+                        }
                     }
                 });
                 return newObj;

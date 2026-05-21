@@ -705,6 +705,41 @@ export const Settings = () => {
                             >
                                 <Cloud className="w-4 h-4 mr-2" /> Force Global Cloud Backup
                             </Button>
+                            <Button 
+                                variant="outline" 
+                                className="w-full justify-start text-[0.85rem] h-9 border-slate-200 hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                                onClick={async () => {
+                                    try {
+                                        toast.loading('Starting candidate name standardization...', { id: 'standardize' });
+                                        const { collection, getDocs, doc, updateDoc } = await import('firebase/firestore');
+                                        const { formatCandidateName } = await import('../../lib/utils');
+                                        
+                                        const querySnapshot = await getDocs(collection(db, 'candidates'));
+                                        let updatedCount = 0;
+                                        
+                                        for (const candidateDoc of querySnapshot.docs) {
+                                            const data = candidateDoc.data();
+                                            const originalName = data.candidateName || '';
+                                            const formattedName = formatCandidateName(originalName);
+                                            
+                                            if (formattedName && originalName !== formattedName) {
+                                                await updateDoc(doc(db, 'candidates', candidateDoc.id), {
+                                                    candidateName: formattedName
+                                                });
+                                                updatedCount++;
+                                            }
+                                        }
+                                        
+                                        toast.success(`Standardization complete! Standardized ${updatedCount} candidates.`, { id: 'standardize' });
+                                        window.dispatchEvent(new CustomEvent('candidates-updated'));
+                                    } catch (err: any) {
+                                        console.error(err);
+                                        toast.error('Standardization failed: ' + err.message, { id: 'standardize' });
+                                    }
+                                }}
+                            >
+                                <Users className="w-4 h-4 mr-2 text-emerald-500" /> Chuẩn hóa tên ứng cử viên cũ (Title Case)
+                            </Button>
                             <Button variant="outline" className="w-full justify-start text-[0.85rem] h-9 border-slate-200 hover:border-primary hover:bg-primary/5 hover:text-primary transition-colors" onClick={async () => {
                                 const { generateUserGuide } = await import('../../services/userGuideService');
                                 await generateUserGuide();

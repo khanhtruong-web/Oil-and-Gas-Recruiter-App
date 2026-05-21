@@ -31,6 +31,7 @@ export const PersonnelDirectory = ({
     const [viewTab, setViewTab] = useState<'active' | 'rejected' | 'trash'>('active');
     const [statusFilter, setStatusFilter] = useState<string>('All');
     const [disciplineFilter, setDisciplineFilter] = useState<string>('All');
+    const [searchTerm, setSearchTerm] = useState<string>('');
     const [dateFrom, setDateFrom] = useState<string>('');
     const [dateTo, setDateTo] = useState<string>('');
     const { disciplineDetails, disciplines: catalogDisciplines } = useDisciplines();
@@ -50,6 +51,11 @@ export const PersonnelDirectory = ({
         }
         
         if (!tabMatch) return false;
+
+        if (searchTerm) {
+            const h = `${c.candidateName} ${c.email} ${c.phone} ${c.specializedField} ${c.workFields}`.toLowerCase();
+            if (!h.includes(searchTerm.toLowerCase())) return false;
+        }
 
         if (viewTab === 'active' && statusFilter !== 'All') {
             if (cs !== statusFilter.toLowerCase()) return false;
@@ -86,7 +92,7 @@ export const PersonnelDirectory = ({
     // Reset pagination when filters change
     React.useEffect(() => {
         setCurrentPage(1);
-    }, [viewTab, statusFilter, disciplineFilter, dateFrom, dateTo]);
+    }, [viewTab, statusFilter, disciplineFilter, dateFrom, dateTo, searchTerm]);
 
     const toggleSelectAll = () => {
         if (selectedIds.length === paginatedList.length) setSelectedIds([]);
@@ -169,6 +175,18 @@ export const PersonnelDirectory = ({
             </CardHeader>
             <CardContent className="p-4 bg-slate-50">
                 <div className="flex flex-wrap items-end gap-3 mb-4">
+                    <div className="flex flex-col gap-1 w-full sm:w-[200px]">
+                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">
+                            SEARCH
+                        </label>
+                        <input 
+                            type="text" 
+                            placeholder="Name, email, phone..."
+                            className="h-8 px-3 text-[11px] font-bold text-slate-700 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 ring-primary/20 w-full"
+                            value={searchTerm} 
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                     {viewTab === 'active' && (
                         <>
                             <div className="flex flex-col gap-1 w-full sm:w-auto">
@@ -225,10 +243,10 @@ export const PersonnelDirectory = ({
                             onChange={e => setDateTo(e.target.value)}
                         />
                     </div>
-                    {(statusFilter !== 'All' || dateFrom || dateTo) && (
+                    {((viewTab === 'active' && statusFilter !== 'All') || disciplineFilter !== 'All' || dateFrom || dateTo || searchTerm) && (
                         <Button 
                             variant="ghost" 
-                            onClick={() => { setStatusFilter('All'); setDateFrom(''); setDateTo(''); }}
+                            onClick={() => { setStatusFilter('All'); setDisciplineFilter('All'); setDateFrom(''); setDateTo(''); setSearchTerm(''); }}
                             className="text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-800 h-8"
                         >
                             Clear Filters

@@ -171,6 +171,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Firebase re-authentication failed", err);
       if (err.code === 'auth/popup-closed-by-user') {
         toast.error("Login popup closed. Could not get Drive access.");
+      } else if (err.code === 'auth/popup-blocked' || err.message?.includes('popup-blocked')) {
+        toast.error("Trình duyệt đã chặn popup/vui lòng nhấp vào biểu tượng 'Mở trong tab mới' (Open in New Tab) ở góc trên cùng bên phải màn hình để thực hiện đăng nhập Google.", {
+          duration: 10000,
+          id: 'popup-blocked-drive'
+        });
       } else {
         toast.error("Failed to connect Google Account: " + err.message);
       }
@@ -225,8 +230,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setError("Network error. Please check your connection.");
       } else if (e.code === 'auth/unauthorized-domain') {
         setError("Domain not authorized in Firebase Console.");
-      } else if (e.code === 'auth/popup-blocked') {
+      } else if (e.code === 'auth/popup-blocked' || e.message?.includes('popup-blocked')) {
         setError("Popup blocked by browser. Please allow popups or use 'Open in New Tab'.");
+        toast.error("Trình duyệt đã chặn popup đăng nhập! Vui lòng nhấp vào nút 'Open in New Tab' ở góc trên bên phải trang web để đăng nhập một cách thuận tiện.", {
+          duration: 12000,
+          id: 'popup-blocked-signin'
+        });
       } else {
         setError(e.message || "An error occurred during sign in.");
       }

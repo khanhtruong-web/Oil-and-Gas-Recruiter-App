@@ -11,6 +11,7 @@ import { useAuth } from '../AuthProvider';
 import { db } from '../../lib/firebase';
 import { collection, onSnapshot, query, where, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../../lib/firestore-error';
+import { formatCandidateName } from '../../lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
@@ -127,8 +128,18 @@ export const CompanyTemplates = ({ candidates: rawCandidates }: { candidates: Ca
         if (!selectedCandidateId) return;
         try {
             toast.loading('Saving candidate information...', { id: 'save-cand' });
+            const finalData = { ...editingCandidate } as any;
+            if (finalData.candidateName) {
+                finalData.candidateName = formatCandidateName(finalData.candidateName);
+            }
+            // Remove massive fields to avoid Firestore payload limits
+            delete finalData.rawHtml;
+            delete finalData.fileBase64;
+            if (finalData.rawText && typeof finalData.rawText === 'string') {
+                finalData.rawText = finalData.rawText.substring(0, 50000);
+            }
             await updateDoc(doc(db, 'candidates', selectedCandidateId), {
-                ...editingCandidate,
+                ...finalData,
                 updatedAt: serverTimestamp()
             });
             toast.success('Cross-platform sync complete', { id: 'save-cand' });
