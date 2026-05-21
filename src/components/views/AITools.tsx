@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Loader2, Bot, CheckCircle2, Award, TrendingUp, Download, Sparkles, Search } from 'lucide-react';
 import Markdown from 'react-markdown';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, AlignmentType, ShadingType, WidthType, BorderStyle } from 'docx';
 import { saveAs } from 'file-saver';
 
 export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
@@ -42,60 +42,203 @@ export const AITools = ({ candidates }: { candidates: Candidate[] }) => {
             toast.loading('Preparing report...', { id: 'export-report' });
             
             const lines = result.split('\n');
-            const children = [];
+            const children: any[] = [];
             
             const toolName = tools.find(t => t.id === activeTool)?.label || 'AI Analysis';
-            
-            children.push(
-                new Paragraph({
-                    children: [new TextRun({ text: "CONFIDENTIAL REPORT", bold: true, size: 24, color: "555555" })],
-                    spacing: { after: 200 },
-                })
-            );
-            
-            children.push(
-                new Paragraph({
-                    children: [new TextRun({ text: `${toolName} Result`, bold: true, size: 36, color: "000000" })],
-                    heading: HeadingLevel.HEADING_1,
-                    spacing: { after: 400 },
-                })
-            );
+            const cv = selectedId ? candidates.find(c => c.id === selectedId) : null;
+
+            const parseTextRuns = (text: string, size = 24, defaultColor = '2d3748') => {
+                const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+                return parts.filter(p => !!p).map(part => {
+                    const isBold = part.startsWith('**') && part.endsWith('**');
+                    const isItalic = part.startsWith('*') && part.endsWith('*');
+                    const cleanText = isBold ? part.replace(/\*\*/g, '') : (isItalic ? part.replace(/\*/g, '') : part);
+                    return new TextRun({
+                        text: cleanText,
+                        font: 'Arial',
+                        size: size,
+                        bold: isBold,
+                        italics: isItalic,
+                        color: defaultColor
+                    });
+                });
+            };
+
+            if (activeTool === 'spellcheck' && cv) {
+                // Header Panel: A beautiful table containing candidate name, position, contact info
+                children.push(
+                    new Table({
+                        width: { size: 100, type: WidthType.PERCENTAGE },
+                        borders: {
+                            top: { style: BorderStyle.NONE },
+                            bottom: { style: BorderStyle.NONE },
+                            left: { style: BorderStyle.NONE },
+                            right: { style: BorderStyle.NONE },
+                            insideHorizontal: { style: BorderStyle.NONE },
+                            insideVertical: { style: BorderStyle.NONE }
+                        },
+                        rows: [
+                            new TableRow({
+                                children: [
+                                    new TableCell({
+                                        shading: { fill: '1e3a8a', type: ShadingType.CLEAR, color: 'auto' },
+                                        margins: { top: 240, bottom: 240, left: 300, right: 300 },
+                                        children: [
+                                            new Paragraph({
+                                                alignment: AlignmentType.CENTER,
+                                                children: [
+                                                    new TextRun({
+                                                        text: (cv.candidateName || 'CANDIDATE PROFILE').toUpperCase(),
+                                                        bold: true,
+                                                        font: 'Arial',
+                                                        size: 40, // 20pt
+                                                        color: 'FFFFFF'
+                                                    })
+                                                ]
+                                            }),
+                                            new Paragraph({
+                                                alignment: AlignmentType.CENTER,
+                                                children: [
+                                                    new TextRun({
+                                                        text: (cv.discipline || 'TECHNICAL EXPERT').toUpperCase(),
+                                                        font: 'Arial',
+                                                        size: 26, // 13pt
+                                                        color: '93c5fd', // Accent color
+                                                        bold: true
+                                                    })
+                                                ],
+                                                spacing: { before: 120 }
+                                            })
+                                        ]
+                                    })
+                                ]
+                            })
+                        ]
+                    })
+                );
+                children.push(new Paragraph({ spacing: { after: 200 } }));
+
+                // Beautifully formatted contact info below the colored header box
+                const contactItems = [];
+                if (cv.email) contactItems.push(`Email: ${cv.email}`);
+                if (cv.phone) contactItems.push(`Phone: ${cv.phone}`);
+                if (cv.yearsExp) contactItems.push(`Experience: ${cv.yearsExp} Years`);
+                
+                if (contactItems.length > 0) {
+                    children.push(
+                        new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [
+                                new TextRun({
+                                    text: contactItems.join('   |   '),
+                                    font: 'Arial',
+                                    size: 20, // 10pt
+                                    color: '475569'
+                                })
+                            ],
+                            spacing: { after: 300 }
+                        })
+                    );
+                }
+                
+                // Add a styled divider
+                children.push(
+                    new Paragraph({
+                        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'cbd5e1', space: 2 } },
+                        spacing: { after: 400 }
+                    })
+                );
+            } else {
+                // Formatting for general analytical reports
+                children.push(
+                    new Paragraph({
+                        children: [new TextRun({ text: "CONFIDENTIAL ANALYSIS REPORT", bold: true, size: 20, font: "Arial", color: "475569" })],
+                        spacing: { after: 80 }
+                    })
+                );
+                
+                let titleText = `${toolName} Report`;
+                if (cv) {
+                    titleText += ` - ${cv.candidateName}`;
+                }
+                
+                children.push(
+                    new Paragraph({
+                        children: [new TextRun({ text: titleText, bold: true, size: 32, font: "Arial", color: "111827" })],
+                        spacing: { after: 300 }
+                    })
+                );
+                
+                children.push(
+                    new Paragraph({
+                        border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: '1e3a8a', space: 6 } },
+                        spacing: { after: 450 }
+                    })
+                );
+            }
             
             for (const line of lines) {
-                if (!line.trim()) {
-                    children.push(new Paragraph({ spacing: { after: 150 } }));
+                const trimmed = line.trim();
+                if (!trimmed) {
+                    children.push(new Paragraph({ spacing: { after: 120 } }));
                     continue;
                 }
                 
-                // Keep it simple for markdown handling
-                let cleanedLine = line.replace(/^\s*-\s+/, '• '); // List items
+                let isBullet = false;
+                let cleanLine = line;
                 
-                if (cleanedLine.startsWith('# ')) {
-                    children.push(new Paragraph({ children: [new TextRun({ text: cleanedLine.replace('# ', ''), bold: true, size: 32, color: "111111" })], spacing: { before: 200, after: 100 } }));
-                } else if (cleanedLine.startsWith('## ')) {
-                    children.push(new Paragraph({ children: [new TextRun({ text: cleanedLine.replace('## ', ''), bold: true, size: 28, color: "222222" })], spacing: { before: 200, after: 100 } }));
-                } else if (cleanedLine.startsWith('### ')) {
-                    children.push(new Paragraph({ children: [new TextRun({ text: cleanedLine.replace('### ', ''), bold: true, size: 24, color: "333333" })], spacing: { before: 200, after: 100 } }));
+                if (/^\s*[-*•]\s+/.test(line)) {
+                    isBullet = true;
+                    cleanLine = line.replace(/^\s*[-*•]\s+/, '');
+                }
+                
+                if (cleanLine.startsWith('# ')) {
+                    children.push(
+                        new Paragraph({
+                            children: parseTextRuns(cleanLine.replace('# ', ''), 32, '1e3a8a'),
+                            spacing: { before: 240, after: 120 },
+                            border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: '1e3a8a', space: 6 } }
+                        })
+                    );
+                } else if (cleanLine.startsWith('## ')) {
+                    children.push(
+                        new Paragraph({
+                            children: parseTextRuns(cleanLine.replace('## ', ''), 28, '1e3a8a'),
+                            spacing: { before: 200, after: 100 },
+                            border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '3b82f6', space: 4 } }
+                        })
+                    );
+                } else if (cleanLine.startsWith('### ')) {
+                    children.push(
+                        new Paragraph({
+                            children: parseTextRuns(cleanLine.replace('### ', ''), 24, '1f2937'),
+                            spacing: { before: 160, after: 80 }
+                        })
+                    );
+                } else if (isBullet) {
+                    children.push(
+                        new Paragraph({
+                            children: parseTextRuns(cleanLine, 24, '374151'),
+                            bullet: { level: 0 },
+                            spacing: { after: 80, line: 320 }
+                        })
+                    );
                 } else {
-                    // Try to parse out **bold** text inline
-                    const parts = cleanedLine.split(/(\*\*.*?\*\*)/g);
-                    const runs = parts.filter(p => !!p).map(part => {
-                        if (part.startsWith('**') && part.endsWith('**')) {
-                            return new TextRun({ text: part.replace(/\*\*/g, ''), bold: true, size: 22 });
-                        }
-                        let cleanText = part.replace(/\*/g, '');
-                        return new TextRun({ text: cleanText, size: 22 });
-                    });
-                    
-                    children.push(new Paragraph({ children: runs, spacing: { after: 100 } }));
+                    children.push(
+                        new Paragraph({
+                            children: parseTextRuns(cleanLine, 24, '374151'),
+                            spacing: { after: 120, line: 320 }
+                        })
+                    );
                 }
             }
             
             const doc = new Document({ sections: [{ properties: {}, children }] });
             const blob = await Packer.toBlob(doc);
             
-            saveAs(blob, `AI_Report_${toolName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.docx`);
-            toast.success('Report exported for managers.', { id: 'export-report' });
+            const prefixName = cv?.candidateName ? `${cv.candidateName.replace(/\s+/g, '_')}_` : '';
+            saveAs(blob, `${prefixName}${toolName.replace(/\s+/g, '_')}_CV.docx`);
+            toast.success('Report successfully saved as MS Word.', { id: 'export-report' });
         } catch (e) {
             console.error("Export error", e);
             toast.error('Failed to export report.', { id: 'export-report' });
