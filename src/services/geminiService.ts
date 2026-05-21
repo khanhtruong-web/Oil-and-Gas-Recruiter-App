@@ -238,20 +238,17 @@ CANDIDATES DATA (summarized):
     } else {
       // (rest of the logic remains same for single analyze)
       if (mode === 'spellcheck') {
-        prompt = `You are an expert Native English Technical Writer and Senior HR Consultant specializing in the Oil & Gas, Offshore, Subsea, and Engineering sectors.
-Your specific task is to conduct a meticulous phrasing, grammar, and typography analysis of the provided CV. The candidate's discipline is: "${candidateDiscipline || 'General Engineering'}".
+        prompt = `You are an expert Technical Writer and Senior HR Consultant specializing in the Oil & Gas, Offshore, Subsea, and Engineering sectors.
+Your task is to conduct an Advanced Phrasing & Spellcheck on the provided CV text.
 
-CRITICAL RULES AND CONSTRAINTS - YOU MUST OBEY THESE:
-1. DEEP PHRASING ANALYSIS: Do not just correct spelling. Analyze the grammar and sentence structures deeply to ensure they meet the highest professional standard for a "${candidateDiscipline || 'General Engineering'}" role. Ensure industry-standard phrasing is used (e.g., using "executed" instead of "did", "implemented QA/QC protocols" instead of "checked quality").
-2. STRUCTURE OF RESPONSE: Your output MUST be beautifully formatted Markdown with the following sections:
-   - **Executive Grammar & Tone Summary**: A brief (2-3 sentences) evaluation of the original writing quality and professional tone.
-   - **Critical Corrections & Enhancements**: A bulleted list of 5-10 significant grammatical fixes or phrasing enhancements. Format each as: 
-     * *Original*: "..." 
-     * *Corrected*: "..." 
-     * *Rationale*: Why this was changed (e.g., "Active voice", "Industry-standard terminology for ${candidateDiscipline || 'this role'}").
-   - **Terminology Alignment**: Suggestions for better industry-specific action verbs or keywords that fit their discipline.
-   - **The Fully Polished CV**: Provide the FULL, 100% corrected and professionally rewritten CV text from start to finish. Preserve the exact structural layout, sections, lists, and tables of the original CV. VERY IMPORTANT: You MUST preserve every single line break (\\n) and maintain bullet points. Do NOT summarize or skip any details from the original CV.
-3. NO HALLUCINATION: Enhance the impact of action verbs without altering factual meaning, numbers, or adding hallucinated data.`;
+The candidate's discipline is: "${candidateDiscipline || 'General Engineering'}".
+
+CRITICAL INSTRUCTIONS & CONSTRAINTS:
+1. STRICTLY PRESERVE THE ORIGINAL CUSTOM STRUCTURE: You MUST return the FULL, 100% corrected and professionally rewritten CV text from start to finish. You MUST completely preserve the candidate's original custom CV structure, sections, lists, margins, tables, bullet points, job history dates, company names, and formatting. Every candidate's CV is structured differently; you must honor and reproduce that specific structure exactly. Do NOT summarize, compress, or skip any details or employment projects.
+2. DISCIPLINE-BASED GRAMMAR, SPELLING & TONE: Conduct a deep phrasing and grammar correction. Correct any grammatical mistakes, typos, spelling slips, or formatting issues. Elevate technical phrasing to highly professional, technical, native-sounding English. Align terminology with standard Oil & Gas industry action verbs and keywords (e.g., use "engineered", "commissioned", "implemented QA/QC" instead of simplistic verbs) that fit their specific discipline: "${candidateDiscipline || 'General Engineering'}".
+3. CONSOLIDATE AND DELETE INTER-PAGE NOISE: Scan the entire input text. In technical multi-page CVs, there is often repetitive noise. You MUST clean up and completely remove headers, footers, "Page X of Y", page numbers, file name stamps, date markers, or any layout meta lines that belong to page transitions. Consolidate the text seamlessly into a single continuous polished document.
+4. NO HALLUCINATION: Enhance professional vocabulary and impact without altering factual values, candidate names, contacts, project dates, numeric scopes, or adding fake competencies.
+5. NO CONVERSATIONAL FILLER: Return ONLY the raw, polished, and corrected CV text. Do NOT add introductory remarks or explanatory notes (e.g., do NOT start with "Here is the corrected CV..."). Just start with the actual polished resume.`;
       } else if (mode === 'review') {
         if (jobDescription) {
           prompt = `Review this CV deeply against the following Job Description. 

@@ -66,6 +66,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import Markdown from 'react-markdown';
 import { OperationType, handleFirestoreError } from './lib/firestore-error';
 import { getSafeDisciplineFolderName, getApprovedFileName } from './lib/drive-utils';
 import { formatCandidateName } from './lib/utils';
@@ -424,7 +425,7 @@ const CVAnalysisTool = ({ candidate }: { candidate: Candidate }) => {
                         <p className="font-bold text-[10px] uppercase tracking-widest">Generating Insight...</p>
                     </div>
                 ) : result ? (
-                    <div className="whitespace-pre-wrap text-slate-700 font-medium whitespace-pre-wrap">{result}</div>
+                    <div className="prose prose-sm prose-slate max-w-none bg-white p-4 rounded-lg shadow-sm border border-slate-100"><Markdown>{result}</Markdown></div>
                 ) : (
                     <div className="flex flex-col items-center justify-center pt-20 text-slate-300 italic">
                         Select an analysis mode to begin AI review.
