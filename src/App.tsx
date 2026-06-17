@@ -1735,20 +1735,50 @@ const MainContent = () => {
       <aside className={`${sidebarCollapsed ? 'w-20' : 'w-72'} bg-[#0a0f1c] text-white flex flex-col shrink-0 transition-all duration-300 ease-in-out relative group/sidebar border-r border-white/5`}>
         <div className={`p-8 flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!sidebarCollapsed && (
-            <div className="flex items-center gap-4">
-              <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl ring-1 ring-white/20 shadow-xl shadow-blue-900/20">
-                <Users className="w-6 h-6 text-white" />
+            <button
+              id="sidebar-home-logo"
+              onClick={() => setActiveTab('dashboard')}
+              className="flex items-center gap-4 text-left group/logo transition-all duration-300 hover:opacity-95 focus:outline-none"
+              title="Go to Dashboard"
+            >
+              <div className="p-2.5 bg-gradient-to-br from-indigo-500 via-blue-600 to-cyan-500 rounded-2xl ring-1 ring-white/20 shadow-xl shadow-blue-900/20 group-hover/logo:scale-110 group-hover/logo:shadow-cyan-500/15 group-hover/logo:ring-cyan-400/30 transition-all duration-300 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover/logo:translate-x-[100%] transition-transform duration-1000" />
+                <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {/* Platform base waterline / legs */}
+                  <path d="M2 20h20M5 20l2-6h10l2 6" strokeWidth="1.5" />
+                  {/* Topside superstructure decks */}
+                  <path d="M6 14h12M7 10h10M4 10l3-5h10l3 5" strokeWidth="1.5" />
+                  {/* Structural trusses / triangulation lines */}
+                  <path d="M7 14l5-4 5 4M12 10v4" opacity="0.8" strokeWidth="1" />
+                  {/* Human/talent node connections: A glowing circle or person outline overlapping */}
+                  <circle cx="12" cy="5" r="2" fill="currentColor" />
+                  <circle cx="5" cy="10" r="1.5" className="text-cyan-400" fill="currentColor" />
+                  <circle cx="19" cy="10" r="1.5" className="text-cyan-400" fill="currentColor" />
+                </svg>
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-black tracking-tight leading-none text-white">Expertise</span>
-                <span className="text-[9px] uppercase font-black text-blue-400 tracking-[0.2em] mt-1.5 drop-shadow-sm">Manager V2</span>
+                <span className="text-xl font-black tracking-tight leading-none text-white group-hover/logo:text-cyan-400 transition-colors duration-300">Expertise</span>
+                <span className="text-[9px] uppercase font-black text-blue-400 tracking-[0.2em] mt-1.5 drop-shadow-sm group-hover/logo:text-white transition-colors duration-300">Manager V2</span>
               </div>
-            </div>
+            </button>
           )}
           {sidebarCollapsed && (
-             <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl ring-1 ring-white/20 shadow-xl shadow-blue-900/20">
-                <Users className="w-6 h-6 text-white" />
-             </div>
+             <button
+               id="sidebar-home-logo-collapsed"
+               onClick={() => setActiveTab('dashboard')}
+               className="p-2.5 bg-gradient-to-br from-indigo-500 via-blue-600 to-cyan-500 rounded-2xl ring-1 ring-white/20 shadow-xl shadow-blue-900/20 hover:scale-110 active:scale-95 hover:shadow-cyan-500/15 hover:ring-cyan-400/30 transition-all duration-300 relative overflow-hidden group/logo"
+               title="Go to Dashboard"
+             >
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover/logo:translate-x-[100%] transition-transform duration-1000" />
+                <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 20h20M5 20l2-6h10l2 6" strokeWidth="1.5" />
+                  <path d="M6 14h12M7 10h10M4 10l3-5h10l3 5" strokeWidth="1.5" />
+                  <path d="M7 14l5-4 5 4M12 10v4" opacity="0.8" strokeWidth="1" />
+                  <circle cx="12" cy="5" r="2" fill="currentColor" />
+                  <circle cx="5" cy="10" r="1.5" className="text-cyan-400" fill="currentColor" />
+                  <circle cx="19" cy="10" r="1.5" className="text-cyan-400" fill="currentColor" />
+                </svg>
+             </button>
           )}
         </div>
 
